@@ -2,9 +2,9 @@ import { io } from 'socket.io-client';
 
 let socket = null;
 
-const SOCKET_URL = window.location.hostname === 'localhost'
+const SOCKET_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost'
   ? `http://${window.location.hostname}:3001`
-  : window.location.origin;
+  : window.location.origin);
 
 export function connectSocket(token) {
   if (socket?.connected) return socket;
