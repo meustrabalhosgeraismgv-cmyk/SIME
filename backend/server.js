@@ -43,6 +43,14 @@ async function start() {
 
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+  app.use((req, res, next) => {
+    const { getDB } = require('./config/mongodb');
+    if (!getDB() && req.path !== '/api/health') {
+      return res.status(503).json({ error: 'Base de dados indisponível. Tente novamente mais tarde.' });
+    }
+    next();
+  });
+
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/instituicoes', require('./routes/instituicoes'));
   app.use('/api/alunos', require('./routes/alunos'));
@@ -63,7 +71,13 @@ async function start() {
   app.use('/api/chat', require('./routes/chat'));
 
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString(), db: 'mongodb' });
+    const { getDB } = require('./config/mongodb');
+    const db = getDB();
+    res.json({
+      status: db ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      db: db ? 'mongodb' : 'disconnected'
+    });
   });
 
   app.use((err, req, res, next) => {
