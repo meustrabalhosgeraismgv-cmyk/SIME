@@ -83,7 +83,7 @@ export default function PublicLayout() {
       {/* Footer */}
       <footer className="bg-gray-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-8">
             {/* Sobre */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -131,13 +131,33 @@ export default function PublicLayout() {
               </nav>
             </div>
 
-            {/* Contactos */}
+            {/* Contactos SIME */}
             <div className="space-y-4">
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">Contactos</h4>
               <div className="space-y-2 text-sm text-gray-400">
                 <p>Huambo, Angola</p>
                 <a href="mailto:info@sime.ao" className="block hover:text-white transition-colors">info@sime.ao</a>
                 <a href="tel:+244923000000" className="block hover:text-white transition-colors">+244 923 000 000</a>
+              </div>
+            </div>
+
+            {/* Desenvolvedor */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-white uppercase tracking-wider">Desenvolvedor</h4>
+              <div className="space-y-3 text-sm text-gray-400">
+                <a href="mailto:andiotechinovacoes@gmail.com" className="block hover:text-white transition-colors">
+                  andiotechinovacoes@gmail.com
+                </a>
+                <a href="tel:+244928565837" className="block hover:text-white transition-colors">
+                  +244 928 565 837
+                </a>
+                <a href="tel:+244936125131" className="block hover:text-white transition-colors">
+                  +244 936 125 131
+                </a>
+                <a href="https://andiotechinovacoes.netlify.app/" target="_blank" rel="noopener noreferrer"
+                  className="block hover:text-white transition-colors">
+                  andiotechinovacoes.netlify.app
+                </a>
               </div>
             </div>
           </div>
@@ -159,7 +179,9 @@ export default function PublicLayout() {
           </div>
           <div className="border-t border-gray-800 mt-4 pt-4 flex items-center justify-center gap-2">
             <span className="text-xs text-gray-600">Desenvolvido por</span>
-            <img src="/logos/AndioTech.png" alt="AnDioTech Inovações" className="h-6" />
+            <a href="https://andiotechinovacoes.netlify.app/" target="_blank" rel="noopener noreferrer">
+              <img src="/logos/AndioTech.png" alt="AnDioTech Inovações" className="h-6 hover:opacity-80 transition-opacity" />
+            </a>
           </div>
         </div>
       </footer>
