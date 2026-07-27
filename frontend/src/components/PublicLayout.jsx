@@ -157,6 +157,10 @@ export default function PublicLayout() {
               </a>
             </div>
           </div>
+          <div className="border-t border-gray-800 mt-4 pt-4 flex items-center justify-center gap-2">
+            <span className="text-xs text-gray-600">Desenvolvido por</span>
+            <img src="/logos/AndioTech.png" alt="AnDioTech Inovações" className="h-6" />
+          </div>
         </div>
       </footer>
     </div>

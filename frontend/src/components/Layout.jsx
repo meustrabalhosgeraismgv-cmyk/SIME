@@ -14,11 +14,15 @@ const Layout = () => {
       <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-[72px]' : 'ml-64'}`}>
         <Header />
         <TopNav />
-        <main className="p-6 min-h-[calc(100vh-7rem)]">
+        <main className="p-6 min-h-[calc(100vh-8rem)]">
           <div className="page-enter">
             <Outlet />
           </div>
         </main>
+        <footer className="border-t border-gray-200 dark:border-navy-800 py-3 px-6 flex items-center justify-center gap-2">
+          <span className="text-xs text-gray-400 dark:text-gray-600">Desenvolvido por</span>
+          <img src="/logos/AndioTech.png" alt="AnDioTech Inovações" className="h-5" />
+        </footer>
       </div>
       <ChatWidget />
     </div>
