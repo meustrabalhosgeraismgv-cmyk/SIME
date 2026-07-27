@@ -18,13 +18,17 @@ app.set('io', io);
 const PORT = process.env.PORT || 3001;
 
 async function start() {
-  await connectDB();
+  const mongoDb = await connectDB();
 
-  try {
-    const { seedDatabase } = require('./seed-mongo');
-    await seedDatabase();
-  } catch (err) {
-    console.error('Seed error:', err.message);
+  if (mongoDb) {
+    try {
+      const { seedDatabase } = require('./seed-mongo');
+      await seedDatabase();
+    } catch (err) {
+      console.error('Seed error:', err.message);
+    }
+  } else {
+    console.warn('Sem MongoDB. Servidor inicia sem base de dados.');
   }
 
   const uploadsDir = path.join(__dirname, 'uploads');
