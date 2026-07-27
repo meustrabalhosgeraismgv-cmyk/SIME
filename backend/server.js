@@ -4,6 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const db = require('./config/database');
 const initDatabase = require('./config/init-db');
 
@@ -21,6 +22,16 @@ async function start() {
   await db.ready;
 
   initDatabase();
+
+  try {
+    const { seedDatabase } = require('./seed-auto');
+    await seedDatabase();
+  } catch (err) {
+    console.error('Seed error:', err.message);
+  }
+
+  const uploadsDir = path.join(__dirname, 'uploads');
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
   const setupSocket = require('./socketHandler');
   setupSocket(io);
