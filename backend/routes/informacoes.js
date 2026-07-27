@@ -1,23 +1,34 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { ObjectId } = require('mongodb');
+const { getDB } = require('../config/mongodb');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
-router.get('/:instituicaoId', (req, res) => {
+router.get('/:instituicaoId', async (req, res) => {
   try {
-    let info = db.prepare('SELECT * FROM informacoes_instituicao WHERE instituicao_id = ?').get(req.params.instituicaoId);
+    const db = getDB();
+    let info = await db.collection('informacoes_instituicao').findOne({
+      instituicao_id: req.params.instituicaoId
+    });
+
     if (!info) {
-      db.prepare('INSERT INTO informacoes_instituicao (instituicao_id) VALUES (?)').run(req.params.instituicaoId);
-      info = db.prepare('SELECT * FROM informacoes_instituicao WHERE instituicao_id = ?').get(req.params.instituicaoId);
+      await db.collection('informacoes_instituicao').insertOne({
+        instituicao_id: req.params.instituicaoId
+      });
+      info = await db.collection('informacoes_instituicao').findOne({
+        instituicao_id: req.params.instituicaoId
+      });
     }
+
     res.json(info);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar informações' });
   }
 });
 
-router.put('/:instituicaoId', authenticateToken, authorizeRole('admin', 'instituicao'), (req, res) => {
+router.put('/:instituicaoId', authenticateToken, authorizeRole('admin', 'instituicao'), async (req, res) => {
   try {
+    const db = getDB();
     const {
       horario_atendimento, dias_atendimento, documentos_necessarios,
       procedimentos_inscricao, taxa_reserva_rupe, telefone_secretaria,
@@ -25,37 +36,29 @@ router.put('/:instituicaoId', authenticateToken, authorizeRole('admin', 'institu
       notas_admissionais
     } = req.body;
 
-    const exists = db.prepare('SELECT id FROM informacoes_instituicao WHERE instituicao_id = ?').get(req.params.instituicaoId);
+    const updateData = {
+      horario_atendimento, dias_atendimento, documentos_necessarios,
+      procedimentos_inscricao, taxa_reserva_rupe, telefone_secretaria,
+      email_secretaria, endereco_secretaria, website, link_portal_estudante,
+      notas_admissionais
+    };
+
+    const exists = await db.collection('informacoes_instituicao').findOne({
+      instituicao_id: req.params.instituicaoId
+    });
+
     if (exists) {
-      db.prepare(`
-        UPDATE informacoes_instituicao SET
-          horario_atendimento=?, dias_atendimento=?, documentos_necessarios=?,
-          procedimentos_inscricao=?, taxa_reserva_rupe=?, telefone_secretaria=?,
-          email_secretaria=?, endereco_secretaria=?, website=?, link_portal_estudante=?,
-          notas_admissionais=?
-        WHERE instituicao_id=?
-      `).run(
-        horario_atendimento, dias_atendimento, documentos_necessarios,
-        procedimentos_inscricao, taxa_reserva_rupe, telefone_secretaria,
-        email_secretaria, endereco_secretaria, website, link_portal_estudante,
-        notas_admissionais, req.params.instituicaoId
+      await db.collection('informacoes_instituicao').updateOne(
+        { instituicao_id: req.params.instituicaoId },
+        { $set: updateData }
       );
     } else {
-      db.prepare(`
-        INSERT INTO informacoes_instituicao
-          (instituicao_id, horario_atendimento, dias_atendimento, documentos_necessarios,
-           procedimentos_inscricao, taxa_reserva_rupe, telefone_secretaria,
-           email_secretaria, endereco_secretaria, website, link_portal_estudante,
-           notas_admissionais)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        req.params.instituicaoId,
-        horario_atendimento, dias_atendimento, documentos_necessarios,
-        procedimentos_inscricao, taxa_reserva_rupe, telefone_secretaria,
-        email_secretaria, endereco_secretaria, website, link_portal_estudante,
-        notas_admissionais
-      );
+      await db.collection('informacoes_instituicao').insertOne({
+        instituicao_id: req.params.instituicaoId,
+        ...updateData
+      });
     }
+
     res.json({ message: 'Informações atualizadas' });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar informações' });

@@ -1,60 +1,101 @@
-const db = require('../config/database');
+const { getDB } = require('../config/mongodb');
+const { ObjectId } = require('mongodb');
 
-const getDashboardStats = (req, res) => {
+const getDashboardStats = async (req, res) => {
   try {
-    const totalInstituicoes = db.prepare('SELECT COUNT(*) as total FROM instituicoes').get();
-    const totalAlunos = db.prepare('SELECT COUNT(*) as total FROM alunos').get();
-    const totalProfessores = db.prepare('SELECT COUNT(*) as total FROM professores').get();
-    const totalTurmas = db.prepare('SELECT COUNT(*) as total FROM turmas').get();
-    const totalMatriculas = db.prepare('SELECT COUNT(*) as total FROM matriculas WHERE estado = ?').get('ativa');
+    const db = getDB();
 
-    const instituicoesPorTipo = db.prepare(`
-      SELECT tipo, COUNT(*) as total 
-      FROM instituicoes 
-      GROUP BY tipo
-    `).all();
+    const [totalInstituicoes, totalAlunos, totalProfessores, totalTurmas, totalMatriculas] = await Promise.all([
+      db.collection('instituicoes').countDocuments(),
+      db.collection('alunos').countDocuments(),
+      db.collection('professores').countDocuments(),
+      db.collection('turmas').countDocuments(),
+      db.collection('matriculas').countDocuments({ estado: 'ativa' })
+    ]);
 
-    const alunosPorGenero = db.prepare(`
-      SELECT sexo, COUNT(*) as total 
-      FROM alunos 
-      GROUP BY sexo
-    `).all();
+    const instituicoesPorTipo = await db.collection('instituicoes').aggregate([
+      { $group: { _id: '$tipo', total: { $sum: 1 } } }
+    ]).toArray();
 
-    const vagasGerais = db.prepare(`
-      SELECT 
-        SUM(vagas_totais) as total_vagas,
-        SUM(vagas_disponiveis) as vagas_disponiveis,
-        SUM(vagas_totais) - SUM(vagas_disponiveis) as vagas_ocupadas
-      FROM instituicoes
-    `).get();
+    const alunosPorGenero = await db.collection('alunos').aggregate([
+      { $group: { _id: '$sexo', total: { $sum: 1 } } }
+    ]).toArray();
 
-    const ultimasMatriculas = db.prepare(`
-      SELECT m.*, a.nome_completo as aluno_nome, t.nome as turma_nome, i.nome as instituicao_nome
-      FROM matriculas m
-      LEFT JOIN alunos a ON m.aluno_id = a.id
-      LEFT JOIN turmas t ON m.turma_id = t.id
-      LEFT JOIN instituicoes i ON t.instituicao_id = i.id
-      ORDER BY m.created_at DESC
-      LIMIT 5
-    `).all();
+    const vagasGerais = await db.collection('instituicoes').aggregate([
+      {
+        $group: {
+          _id: null,
+          total_vagas: { $sum: '$vagas_totais' },
+          vagas_disponiveis: { $sum: '$vagas_disponiveis' }
+        }
+      }
+    ]).toArray();
 
-    const alertasRecentes = db.prepare(`
-      SELECT * FROM alertas 
-      ORDER BY created_at DESC 
-      LIMIT 5
-    `).all();
+    const vagas = vagasGerais[0] || { total_vagas: 0, vagas_disponiveis: 0 };
+    vagas.vagas_ocupadas = (vagas.total_vagas || 0) - (vagas.vagas_disponiveis || 0);
+
+    const ultimasMatriculas = await db.collection('matriculas').aggregate([
+      { $sort: { created_at: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: 'alunos',
+          localField: 'aluno_id',
+          foreignField: '_id',
+          as: 'aluno'
+        }
+      },
+      { $unwind: { path: '$aluno', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'turmas',
+          localField: 'turma_id',
+          foreignField: '_id',
+          as: 'turma'
+        }
+      },
+      { $unwind: { path: '$turma', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'instituicoes',
+          localField: 'turma.instituicao_id',
+          foreignField: '_id',
+          as: 'instituicao'
+        }
+      },
+      { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          aluno_id: 1,
+          turma_id: 1,
+          estado: 1,
+          data_matricula: 1,
+          created_at: 1,
+          aluno_nome: '$aluno.nome_completo',
+          turma_nome: '$turma.nome',
+          instituicao_nome: '$instituicao.nome'
+        }
+      }
+    ]).toArray();
+
+    const alertasRecentes = await db.collection('alertas')
+      .find()
+      .sort({ created_at: -1 })
+      .limit(5)
+      .toArray();
 
     res.json({
       resumo: {
-        total_instituicoes: totalInstituicoes.total,
-        total_alunos: totalAlunos.total,
-        total_professores: totalProfessores.total,
-        total_turmas: totalTurmas.total,
-        total_matriculas: totalMatriculas.total
+        total_instituicoes: totalInstituicoes,
+        total_alunos: totalAlunos,
+        total_professores: totalProfessores,
+        total_turmas: totalTurmas,
+        total_matriculas: totalMatriculas
       },
       instituicoes_por_tipo: instituicoesPorTipo,
       alunos_por_genero: alunosPorGenero,
-      vagas: vagasGerais,
+      vagas: vagas,
       ultimas_matriculas: ultimasMatriculas,
       alertas_recentes: alertasRecentes
     });
@@ -63,23 +104,67 @@ const getDashboardStats = (req, res) => {
   }
 };
 
-const getEstatisticasProvincia = (req, res) => {
+const getEstatisticasProvincia = async (req, res) => {
   try {
-    const stats = db.prepare(`
-      SELECT 
-        p.nome as provincia,
-        COUNT(DISTINCT i.id) as total_instituicoes,
-        COUNT(DISTINCT a.id) as total_alunos,
-        COUNT(DISTINCT pr.id) as total_professores,
-        SUM(i.vagas_totais) as total_vagas,
-        SUM(i.vagas_disponiveis) as vagas_disponiveis
-      FROM provincias p
-      LEFT JOIN municipios m ON p.id = m.provincia_id
-      LEFT JOIN instituicoes i ON m.id = i.municipio_id
-      LEFT JOIN alunos a ON i.id = a.instituicao_id
-      LEFT JOIN professores pr ON i.id = pr.instituicao_id
-      GROUP BY p.id, p.nome
-    `).all();
+    const db = getDB();
+
+    const stats = await db.collection('provincias').aggregate([
+      {
+        $lookup: {
+          from: 'municipios',
+          localField: '_id',
+          foreignField: 'provincia_id',
+          as: 'municipios'
+        }
+      },
+      { $unwind: { path: '$municipios', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'instituicoes',
+          localField: 'municipios._id',
+          foreignField: 'municipio_id',
+          as: 'instituicoes'
+        }
+      },
+      { $unwind: { path: '$instituicoes', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'alunos',
+          localField: 'instituicoes._id',
+          foreignField: 'instituicao_id',
+          as: 'alunos'
+        }
+      },
+      {
+        $lookup: {
+          from: 'professores',
+          localField: 'instituicoes._id',
+          foreignField: 'instituicao_id',
+          as: 'professores'
+        }
+      },
+      {
+        $group: {
+          _id: { provincia_id: '$_id', provincia_nome: '$nome' },
+          total_instituicoes: { $addToSet: '$instituicoes._id' },
+          total_alunos: { $addToSet: '$alunos._id' },
+          total_professores: { $addToSet: '$professores._id' },
+          total_vagas: { $sum: '$instituicoes.vagas_totais' },
+          vagas_disponiveis: { $sum: '$instituicoes.vagas_disponiveis' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          provincia: '$_id.provincia_nome',
+          total_instituicoes: { $size: { $ifNull: ['$total_instituicoes', []] } },
+          total_alunos: { $size: { $ifNull: ['$total_alunos', []] } },
+          total_professores: { $size: { $ifNull: ['$total_professores', []] } },
+          total_vagas: 1,
+          vagas_disponiveis: 1
+        }
+      }
+    ]).toArray();
 
     res.json(stats);
   } catch (error) {
@@ -87,33 +172,42 @@ const getEstatisticasProvincia = (req, res) => {
   }
 };
 
-const getRelatorioOcupacao = (req, res) => {
+const getRelatorioOcupacao = async (req, res) => {
   try {
+    const db = getDB();
     const { instituicao_id } = req.query;
 
-    let query = `
-      SELECT 
-        i.id,
-        i.nome,
-        i.tipo,
-        i.vagas_totais,
-        i.vagas_disponiveis,
-        i.vagas_totais - i.vagas_disponiveis as vagas_ocupadas,
-        ROUND(((i.vagas_totais - i.vagas_disponiveis) * 100.0 / i.vagas_totais), 1) as percentual_ocupacao,
-        i.status
-      FROM instituicoes i
-      WHERE i.vagas_totais > 0
-    `;
-
-    const params = [];
+    const matchStage = { vagas_totais: { $gt: 0 } };
     if (instituicao_id) {
-      query += ' AND i.id = ?';
-      params.push(instituicao_id);
+      matchStage._id = new ObjectId(instituicao_id);
     }
 
-    query += ' ORDER BY percentual_ocupacao DESC';
-
-    const relatorio = db.prepare(query).all(...params);
+    const relatorio = await db.collection('instituicoes').aggregate([
+      { $match: matchStage },
+      {
+        $project: {
+          _id: 1,
+          nome: 1,
+          tipo: 1,
+          vagas_totais: 1,
+          vagas_disponiveis: 1,
+          vagas_ocupadas: { $subtract: ['$vagas_totais', '$vagas_disponiveis'] },
+          percentual_ocupacao: {
+            $round: [
+              {
+                $multiply: [
+                  { $divide: [{ $subtract: ['$vagas_totais', '$vagas_disponiveis'] }, '$vagas_totais'] },
+                  100
+                ]
+              },
+              1
+            ]
+          },
+          status: 1
+        }
+      },
+      { $sort: { percentual_ocupacao: -1 } }
+    ]).toArray();
 
     res.json(relatorio);
   } catch (error) {

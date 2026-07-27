@@ -1,55 +1,64 @@
-const db = require('../config/database');
+const { getDB } = require('../config/mongodb');
+const { ObjectId } = require('mongodb');
 
-const getInstituicoes = (req, res) => {
+const COLLECTION = 'instituicoes';
+
+const getInstituicoes = async (req, res) => {
   try {
+    const db = getDB();
     const { page = 1, limit = 10, search = '', tipo = '', municipio_id = '' } = req.query;
-    const offset = (page - 1) * limit;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    let query = `
-      SELECT i.*, m.nome as municipio_nome, p.nome as provincia_nome 
-      FROM instituicoes i 
-      LEFT JOIN municipios m ON i.municipio_id = m.id 
-      LEFT JOIN provincias p ON m.provincia_id = p.id 
-      WHERE 1=1
-    `;
-    let countQuery = 'SELECT COUNT(*) as total FROM instituicoes WHERE 1=1';
-    const params = [];
-    const countParams = [];
+    const match = {};
+    if (search) match.nome = { $regex: search, $options: 'i' };
+    if (tipo) match.tipo = tipo;
+    if (municipio_id) match.municipio_id = new ObjectId(municipio_id);
 
-    if (search) {
-      query += ' AND i.nome LIKE ?';
-      countQuery += ' AND nome LIKE ?';
-      params.push(`%${search}%`);
-      countParams.push(`%${search}%`);
-    }
+    const pipeline = [
+      { $match: match },
+      {
+        $lookup: {
+          from: 'municipios',
+          localField: 'municipio_id',
+          foreignField: '_id',
+          as: 'municipio'
+        }
+      },
+      { $unwind: { path: '$municipio', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'provincias',
+          localField: 'municipio.provincia_id',
+          foreignField: '_id',
+          as: 'provincia'
+        }
+      },
+      { $unwind: { path: '$provincia', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          municipio_nome: '$municipio.nome',
+          provincia_nome: '$provincia.nome'
+        }
+      },
+      { $project: { municipio: 0, provincia: 0 } },
+      { $sort: { nome: 1 } },
+      { $facet: {
+          data: [{ $skip: skip }, { $limit: parseInt(limit) }],
+          total: [{ $count: 'count' }]
+        }
+      }
+    ];
 
-    if (tipo) {
-      query += ' AND i.tipo = ?';
-      countQuery += ' AND tipo = ?';
-      params.push(tipo);
-      countParams.push(tipo);
-    }
-
-    if (municipio_id) {
-      query += ' AND i.municipio_id = ?';
-      countQuery += ' AND municipio_id = ?';
-      params.push(municipio_id);
-      countParams.push(municipio_id);
-    }
-
-    query += ' ORDER BY i.nome LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
-
-    const instituicoes = db.prepare(query).all(...params);
-    const total = db.prepare(countQuery).get(...countParams);
+    const [result] = await db.collection(COLLECTION).aggregate(pipeline).toArray();
+    const total = result.total[0]?.count || 0;
 
     res.json({
-      data: instituicoes,
+      data: result.data,
       pagination: {
-        total: total.total,
+        total,
         page: parseInt(page),
         limit: parseInt(limit),
-        pages: Math.ceil(total.total / limit)
+        pages: Math.ceil(total / parseInt(limit))
       }
     });
   } catch (error) {
@@ -57,16 +66,41 @@ const getInstituicoes = (req, res) => {
   }
 };
 
-const getInstituicaoById = (req, res) => {
+const getInstituicaoById = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
-    const instituicao = db.prepare(`
-      SELECT i.*, m.nome as municipio_nome, p.nome as provincia_nome 
-      FROM instituicoes i 
-      LEFT JOIN municipios m ON i.municipio_id = m.id 
-      LEFT JOIN provincias p ON m.provincia_id = p.id 
-      WHERE i.id = ?
-    `).get(id);
+
+    const pipeline = [
+      { $match: { _id: new ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'municipios',
+          localField: 'municipio_id',
+          foreignField: '_id',
+          as: 'municipio'
+        }
+      },
+      { $unwind: { path: '$municipio', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'provincias',
+          localField: 'municipio.provincia_id',
+          foreignField: '_id',
+          as: 'provincia'
+        }
+      },
+      { $unwind: { path: '$provincia', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          municipio_nome: '$municipio.nome',
+          provincia_nome: '$provincia.nome'
+        }
+      },
+      { $project: { municipio: 0, provincia: 0 } }
+    ];
+
+    const [instituicao] = await db.collection(COLLECTION).aggregate(pipeline).toArray();
 
     if (!instituicao) {
       return res.status(404).json({ error: 'Instituição não encontrada' });
@@ -78,31 +112,58 @@ const getInstituicaoById = (req, res) => {
   }
 };
 
-const createInstituicao = (req, res) => {
+const createInstituicao = async (req, res) => {
   try {
+    const db = getDB();
     const { nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, latitude, longitude } = req.body;
 
-    const result = db.prepare(`
-      INSERT INTO instituicoes (nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, vagas_disponiveis, latitude, longitude)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, vagas_totais, latitude || null, longitude || null);
+    const doc = {
+      nome,
+      tipo,
+      endereco,
+      telefone,
+      email,
+      municipio_id: municipio_id ? new ObjectId(municipio_id) : null,
+      vagas_totais,
+      vagas_disponiveis: vagas_totais,
+      latitude: latitude || null,
+      longitude: longitude || null,
+      created_at: new Date(),
+      updated_at: new Date()
+    };
 
-    res.status(201).json({ message: 'Instituição criada com sucesso', id: result.lastInsertRowid });
+    const result = await db.collection(COLLECTION).insertOne(doc);
+
+    res.status(201).json({ message: 'Instituição criada com sucesso', id: result.insertedId });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao criar instituição' });
   }
 };
 
-const updateInstituicao = (req, res) => {
+const updateInstituicao = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
     const { nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, vagas_disponiveis, status, latitude, longitude } = req.body;
 
-    db.prepare(`
-      UPDATE instituicoes 
-      SET nome = ?, tipo = ?, endereco = ?, telefone = ?, email = ?, municipio_id = ?, vagas_totais = ?, vagas_disponiveis = ?, status = ?, latitude = ?, longitude = ?
-      WHERE id = ?
-    `).run(nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, vagas_disponiveis || vagas_totais, status, latitude || null, longitude || null, id);
+    const update = {
+      $set: {
+        nome,
+        tipo,
+        endereco,
+        telefone,
+        email,
+        municipio_id: municipio_id ? new ObjectId(municipio_id) : null,
+        vagas_totais,
+        vagas_disponiveis: vagas_disponiveis || vagas_totais,
+        status,
+        latitude: latitude || null,
+        longitude: longitude || null,
+        updated_at: new Date()
+      }
+    };
+
+    await db.collection(COLLECTION).updateOne({ _id: new ObjectId(id) }, update);
 
     res.json({ message: 'Instituição atualizada com sucesso' });
   } catch (error) {
@@ -110,32 +171,42 @@ const updateInstituicao = (req, res) => {
   }
 };
 
-const deleteInstituicao = (req, res) => {
+const deleteInstituicao = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
-    db.prepare('DELETE FROM instituicoes WHERE id = ?').run(id);
+
+    await db.collection(COLLECTION).deleteOne({ _id: new ObjectId(id) });
+
     res.json({ message: 'Instituição removida com sucesso' });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao remover instituição' });
   }
 };
 
-const getEstatisticasInstituicao = (req, res) => {
+const getEstatisticasInstituicao = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
+    const objId = new ObjectId(id);
 
-    const totalAlunos = db.prepare('SELECT COUNT(*) as total FROM alunos WHERE instituicao_id = ?').get(id);
-    const totalProfessores = db.prepare('SELECT COUNT(*) as total FROM professores WHERE instituicao_id = ?').get(id);
-    const totalTurmas = db.prepare('SELECT COUNT(*) as total FROM turmas WHERE instituicao_id = ?').get(id);
-    const vagas = db.prepare('SELECT vagas_totais, vagas_disponiveis FROM instituicoes WHERE id = ?').get(id);
+    const [instituicao, totalAlunos, totalProfessores, totalTurmas] = await Promise.all([
+      db.collection(COLLECTION).findOne({ _id: objId }),
+      db.collection('alunos').countDocuments({ instituicao_id: objId }),
+      db.collection('professores').countDocuments({ instituicao_id: objId }),
+      db.collection('turmas').countDocuments({ instituicao_id: objId })
+    ]);
+
+    const vagas_totais = instituicao?.vagas_totais || 0;
+    const vagas_disponiveis = instituicao?.vagas_disponiveis || 0;
 
     res.json({
-      total_alunos: totalAlunos.total,
-      total_professores: totalProfessores.total,
-      total_turmas: totalTurmas.total,
-      vagas_totais: vagas?.vagas_totais || 0,
-      vagas_disponiveis: vagas?.vagas_disponiveis || 0,
-      ocupacao: vagas?.vagas_totais ? ((vagas.vagas_totais - vagas.vagas_disponiveis) / vagas.vagas_totais * 100).toFixed(1) : 0
+      total_alunos: totalAlunos,
+      total_professores: totalProfessores,
+      total_turmas: totalTurmas,
+      vagas_totais,
+      vagas_disponiveis,
+      ocupacao: vagas_totais ? ((vagas_totais - vagas_disponiveis) / vagas_totais * 100).toFixed(1) : 0
     });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar estatísticas' });

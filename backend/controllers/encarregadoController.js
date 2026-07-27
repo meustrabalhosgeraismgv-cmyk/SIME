@@ -1,35 +1,39 @@
-const db = require('../config/database');
+const { getDB } = require('../config/mongodb');
+const { ObjectId } = require('mongodb');
 
-const getEncarregados = (req, res) => {
+const getEncarregados = async (req, res) => {
   try {
+    const db = getDB();
     const { page = 1, limit = 10, search = '' } = req.query;
-    const offset = (page - 1) * limit;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
-    let query = 'SELECT * FROM encarregados WHERE 1=1';
-    let countQuery = 'SELECT COUNT(*) as total FROM encarregados WHERE 1=1';
-    const params = [];
-    const countParams = [];
-
+    const matchStage = {};
     if (search) {
-      query += ' AND (nome_completo LIKE ? OR bi LIKE ? OR telefone LIKE ?)';
-      countQuery += ' AND (nome_completo LIKE ? OR bi LIKE ? OR telefone LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-      countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      matchStage.$or = [
+        { nome_completo: { $regex: search, $options: 'i' } },
+        { bi: { $regex: search, $options: 'i' } },
+        { telefone: { $regex: search, $options: 'i' } }
+      ];
     }
 
-    query += ' ORDER BY nome_completo LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const total = await db.collection('encarregados').countDocuments(matchStage);
 
-    const encarregados = db.prepare(query).all(...params);
-    const total = db.prepare(countQuery).get(...countParams);
+    const encarregados = await db.collection('encarregados')
+      .find(matchStage)
+      .sort({ nome_completo: 1 })
+      .skip(skip)
+      .limit(limitNum)
+      .toArray();
 
     res.json({
       data: encarregados,
       pagination: {
-        total: total.total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total.total / limit)
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -37,21 +41,41 @@ const getEncarregados = (req, res) => {
   }
 };
 
-const getEncarregadoById = (req, res) => {
+const getEncarregadoById = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
-    const encarregado = db.prepare('SELECT * FROM encarregados WHERE id = ?').get(id);
 
+    const encarregado = await db.collection('encarregados').findOne({ _id: new ObjectId(id) });
     if (!encarregado) {
       return res.status(404).json({ error: 'Encarregado não encontrado' });
     }
 
-    const alunos = db.prepare(`
-      SELECT a.*, i.nome as instituicao_nome
-      FROM alunos a
-      LEFT JOIN instituicoes i ON a.instituicao_id = i.id
-      WHERE a.encarregado_id = ?
-    `).all(id);
+    const alunos = await db.collection('alunos').aggregate([
+      { $match: { encarregado_id: new ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'instituicoes',
+          localField: 'instituicao_id',
+          foreignField: '_id',
+          as: 'instituicao'
+        }
+      },
+      { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          nome_completo: 1,
+          data_nascimento: 1,
+          sexo: 1,
+          naturalidade: 1,
+          numero_estudante: 1,
+          instituicao_id: 1,
+          estado: 1,
+          instituicao_nome: '$instituicao.nome'
+        }
+      }
+    ]).toArray();
 
     res.json({ ...encarregado, alunos });
   } catch (error) {
@@ -59,34 +83,42 @@ const getEncarregadoById = (req, res) => {
   }
 };
 
-const createEncarregado = (req, res) => {
+const createEncarregado = async (req, res) => {
   try {
+    const db = getDB();
     const { nome_completo, bi, telefone, email, endereco, profissao } = req.body;
 
-    const result = db.prepare(`
-      INSERT INTO encarregados (nome_completo, bi, telefone, email, endereco, profissao)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(nome_completo, bi, telefone, email, endereco, profissao);
-
-    res.status(201).json({ message: 'Encarregado registado com sucesso', id: result.lastInsertRowid });
-  } catch (error) {
-    if (error.message.includes('UNIQUE constraint failed')) {
+    const existing = await db.collection('encarregados').findOne({ bi });
+    if (existing) {
       return res.status(400).json({ error: 'BI já cadastrado' });
     }
+
+    const result = await db.collection('encarregados').insertOne({
+      nome_completo,
+      bi,
+      telefone,
+      email,
+      endereco,
+      profissao,
+      created_at: new Date()
+    });
+
+    res.status(201).json({ message: 'Encarregado registado com sucesso', id: result.insertedId.toString() });
+  } catch (error) {
     res.status(500).json({ error: 'Erro ao criar encarregado' });
   }
 };
 
-const updateEncarregado = (req, res) => {
+const updateEncarregado = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
     const { nome_completo, bi, telefone, email, endereco, profissao } = req.body;
 
-    db.prepare(`
-      UPDATE encarregados 
-      SET nome_completo = ?, bi = ?, telefone = ?, email = ?, endereco = ?, profissao = ?
-      WHERE id = ?
-    `).run(nome_completo, bi, telefone, email, endereco, profissao, id);
+    await db.collection('encarregados').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { nome_completo, bi, telefone, email, endereco, profissao } }
+    );
 
     res.json({ message: 'Encarregado atualizado com sucesso' });
   } catch (error) {
@@ -94,10 +126,12 @@ const updateEncarregado = (req, res) => {
   }
 };
 
-const deleteEncarregado = (req, res) => {
+const deleteEncarregado = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
-    db.prepare('DELETE FROM encarregados WHERE id = ?').run(id);
+
+    await db.collection('encarregados').deleteOne({ _id: new ObjectId(id) });
     res.json({ message: 'Encarregado removido com sucesso' });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao remover encarregado' });

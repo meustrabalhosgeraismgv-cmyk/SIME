@@ -1,23 +1,29 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  getInstituicoes, 
-  getInstituicaoById, 
-  createInstituicao, 
-  updateInstituicao, 
+const { ObjectId } = require('mongodb');
+const { getDB } = require('../config/mongodb');
+const {
+  getInstituicoes,
+  getInstituicaoById,
+  createInstituicao,
+  updateInstituicao,
   deleteInstituicao,
   getEstatisticasInstituicao
 } = require('../controllers/instituicaoController');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
-const db = require('../config/database');
 
-router.get('/stats', (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
-    const total = db.prepare('SELECT COUNT(*) as total FROM instituicoes').get().total;
-    const alunos = db.prepare('SELECT COUNT(*) as total FROM alunos').get().total;
-    const professores = db.prepare('SELECT COUNT(*) as total FROM professores').get().total;
-    const vagas = db.prepare('SELECT COALESCE(SUM(vagas_disponiveis), 0) as total FROM instituicoes').get().total;
-    
+    const db = getDB();
+    const total = await db.collection('instituicoes').countDocuments();
+    const alunos = await db.collection('alunos').countDocuments();
+    const professores = await db.collection('professores').countDocuments();
+
+    const vagasAgg = await db.collection('instituicoes').aggregate([
+      { $group: { _id: null, total: { $sum: '$vagas_disponiveis' } } }
+    ]).toArray();
+    const vagas = vagasAgg[0]?.total || 0;
+
     res.json({ total, alunos, professores, vagas });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar estatísticas' });

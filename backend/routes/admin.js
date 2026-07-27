@@ -1,55 +1,52 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { ObjectId } = require('mongodb');
+const { getDB } = require('../config/mongodb');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
-// Listar todos os utilizadores (admin only)
-router.get('/users', authenticateToken, authorizeRole('admin'), (req, res) => {
+router.get('/users', authenticateToken, authorizeRole('admin'), async (req, res) => {
   try {
+    const db = getDB();
     const { page = 1, limit = 20, search = '', perfil = '' } = req.query;
-    const offset = (page - 1) * limit;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    let query = `
-      SELECT u.id, u.username, u.nome, u.email, u.telefone, u.perfil, u.is_gestor, 
-             u.entidade_id, u.entidade_tipo, u.aprovado, u.created_at,
-             CASE 
-               WHEN u.entidade_tipo = 'instituicao' THEN (SELECT nome FROM instituicoes WHERE id = u.entidade_id)
-               ELSE NULL
-             END as instituicao_nome
-      FROM usuarios u
-      WHERE 1=1
-    `;
-    let countQuery = 'SELECT COUNT(*) as total FROM usuarios WHERE 1=1';
-    const params = [];
-    const countParams = [];
-
+    const filter = {};
     if (search) {
-      query += ' AND (u.username LIKE ? OR u.nome LIKE ? OR u.email LIKE ?)';
-      countQuery += ' AND (username LIKE ? OR nome LIKE ? OR email LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-      countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      filter.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { nome: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
     }
-
     if (perfil) {
-      query += ' AND u.perfil = ?';
-      countQuery += ' AND perfil = ?';
-      params.push(perfil);
-      countParams.push(perfil);
+      filter.perfil = perfil;
     }
 
-    query += ' ORDER BY u.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const users = await db.collection('usuarios')
+      .find(filter)
+      .project({ password: 0 })
+      .sort({ created_at: -1 })
+      .skip(offset)
+      .limit(parseInt(limit))
+      .toArray();
 
-    const users = db.prepare(query).all(...params);
-    const total = db.prepare(countQuery).get(...countParams);
+    const total = await db.collection('usuarios').countDocuments(filter);
+
+    const enrichedUsers = await Promise.all(users.map(async (u) => {
+      if (u.entidade_tipo === 'instituicao' && u.entidade_id) {
+        const inst = await db.collection('instituicoes').findOne({ _id: new ObjectId(u.entidade_id) });
+        return { ...u, instituicao_nome: inst ? inst.nome : null };
+      }
+      return { ...u, instituicao_nome: null };
+    }));
 
     res.json({
-      data: users,
+      data: enrichedUsers,
       pagination: {
-        total: total.total,
+        total,
         page: parseInt(page),
         limit: parseInt(limit),
-        pages: Math.ceil(total.total / limit)
+        pages: Math.ceil(total / parseInt(limit))
       }
     });
   } catch (error) {
@@ -58,16 +55,18 @@ router.get('/users', authenticateToken, authorizeRole('admin'), (req, res) => {
   }
 });
 
-// Aprovar utilizador (admin only)
-router.put('/users/:id/aprovar', authenticateToken, authorizeRole('admin'), (req, res) => {
+router.put('/users/:id/aprovar', authenticateToken, authorizeRole('admin'), async (req, res) => {
   try {
-    const { id } = req.params;
-    const user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
+    const db = getDB();
+    const user = await db.collection('usuarios').findOne({ _id: new ObjectId(req.params.id) });
     if (!user) {
       return res.status(404).json({ error: 'Utilizador não encontrado' });
     }
 
-    db.prepare('UPDATE usuarios SET aprovado = 1 WHERE id = ?').run(id);
+    await db.collection('usuarios').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { aprovado: 1 } }
+    );
     res.json({ message: 'Utilizador aprovado com sucesso' });
   } catch (error) {
     console.error('Erro ao aprovar utilizador:', error);
@@ -75,11 +74,10 @@ router.put('/users/:id/aprovar', authenticateToken, authorizeRole('admin'), (req
   }
 });
 
-// Rejeitar/remover pendente (admin only)
-router.put('/users/:id/rejeitar', authenticateToken, authorizeRole('admin'), (req, res) => {
+router.put('/users/:id/rejeitar', authenticateToken, authorizeRole('admin'), async (req, res) => {
   try {
-    const { id } = req.params;
-    db.prepare('DELETE FROM usuarios WHERE id = ?').run(id);
+    const db = getDB();
+    await db.collection('usuarios').deleteOne({ _id: new ObjectId(req.params.id) });
     res.json({ message: 'Utilizador rejeitado/removido' });
   } catch (error) {
     console.error('Erro ao rejeitar utilizador:', error);
@@ -87,18 +85,17 @@ router.put('/users/:id/rejeitar', authenticateToken, authorizeRole('admin'), (re
   }
 });
 
-// Eliminar utilizador (admin only)
-router.delete('/users/:id', authenticateToken, authorizeRole('admin'), (req, res) => {
+router.delete('/users/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
   try {
-    const { id } = req.params;
-    const user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
+    const db = getDB();
+    const user = await db.collection('usuarios').findOne({ _id: new ObjectId(req.params.id) });
     if (!user) {
       return res.status(404).json({ error: 'Utilizador não encontrado' });
     }
     if (user.perfil === 'admin') {
       return res.status(400).json({ error: 'Não é possível eliminar administradores' });
     }
-    db.prepare('DELETE FROM usuarios WHERE id = ?').run(id);
+    await db.collection('usuarios').deleteOne({ _id: new ObjectId(req.params.id) });
     res.json({ message: 'Utilizador eliminado com sucesso' });
   } catch (error) {
     console.error('Erro ao eliminar utilizador:', error);
@@ -106,25 +103,28 @@ router.delete('/users/:id', authenticateToken, authorizeRole('admin'), (req, res
   }
 });
 
-// Estatísticas do admin
-router.get('/stats', authenticateToken, authorizeRole('admin'), (req, res) => {
+router.get('/stats', authenticateToken, authorizeRole('admin'), async (req, res) => {
   try {
-    const totalUsers = db.prepare('SELECT COUNT(*) as total FROM usuarios').get();
-    const pendingApprovals = db.prepare('SELECT COUNT(*) as total FROM usuarios WHERE aprovado = 0').get();
-    const usersByProfile = db.prepare(`
-      SELECT perfil, COUNT(*) as total FROM usuarios GROUP BY perfil
-    `).all();
-    const totalInstituicoes = db.prepare('SELECT COUNT(*) as total FROM instituicoes').get();
-    const totalAlunos = db.prepare('SELECT COUNT(*) as total FROM alunos').get();
-    const totalProfessores = db.prepare('SELECT COUNT(*) as total FROM professores').get();
+    const db = getDB();
+    const totalUsers = await db.collection('usuarios').countDocuments();
+    const pendingApprovals = await db.collection('usuarios').countDocuments({ aprovado: 0 });
+
+    const usersByProfile = await db.collection('usuarios').aggregate([
+      { $group: { _id: '$perfil', total: { $sum: 1 } } },
+      { $project: { _id: 0, perfil: '$_id', total: 1 } }
+    ]).toArray();
+
+    const totalInstituicoes = await db.collection('instituicoes').countDocuments();
+    const totalAlunos = await db.collection('alunos').countDocuments();
+    const totalProfessores = await db.collection('professores').countDocuments();
 
     res.json({
-      total_utilizadores: totalUsers.total,
-      pendentes_aprovacao: pendingApprovals.total,
+      total_utilizadores: totalUsers,
+      pendentes_aprovacao: pendingApprovals,
       por_perfil: usersByProfile,
-      total_instituicoes: totalInstituicoes.total,
-      total_alunos: totalAlunos.total,
-      total_professores: totalProfessores.total
+      total_instituicoes: totalInstituicoes,
+      total_alunos: totalAlunos,
+      total_professores: totalProfessores
     });
   } catch (error) {
     console.error('Erro ao buscar stats admin:', error);

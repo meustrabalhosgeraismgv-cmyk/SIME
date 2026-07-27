@@ -1,35 +1,35 @@
-const db = require('../config/database');
+const { getDB } = require('../config/mongodb');
+const { ObjectId } = require('mongodb');
 
-const getNoticias = (req, res) => {
+const getNoticias = async (req, res) => {
   try {
+    const db = getDB();
     const { page = 1, limit = 10, categoria = '' } = req.query;
-    const offset = (page - 1) * limit;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
-    let query = 'SELECT * FROM noticias WHERE publicada = 1';
-    let countQuery = 'SELECT COUNT(*) as total FROM noticias WHERE publicada = 1';
-    const params = [];
-    const countParams = [];
-
+    const matchStage = { publicada: true };
     if (categoria) {
-      query += ' AND categoria = ?';
-      countQuery += ' AND categoria = ?';
-      params.push(categoria);
-      countParams.push(categoria);
+      matchStage.categoria = categoria;
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const total = await db.collection('noticias').countDocuments(matchStage);
 
-    const noticias = db.prepare(query).all(...params);
-    const total = db.prepare(countQuery).get(...countParams);
+    const noticias = await db.collection('noticias')
+      .find(matchStage)
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .toArray();
 
     res.json({
       data: noticias,
       pagination: {
-        total: total.total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total.total / limit)
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -37,11 +37,15 @@ const getNoticias = (req, res) => {
   }
 };
 
-const getNoticiasDestaque = (req, res) => {
+const getNoticiasDestaque = async (req, res) => {
   try {
-    const noticias = db.prepare(
-      'SELECT * FROM noticias WHERE publicada = 1 AND destaque = 1 ORDER BY created_at DESC LIMIT 5'
-    ).all();
+    const db = getDB();
+
+    const noticias = await db.collection('noticias')
+      .find({ publicada: true, destaque: true })
+      .sort({ created_at: -1 })
+      .limit(5)
+      .toArray();
 
     res.json(noticias);
   } catch (error) {
@@ -49,12 +53,15 @@ const getNoticiasDestaque = (req, res) => {
   }
 };
 
-const getNoticiaById = (req, res) => {
+const getNoticiaById = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
-    const noticia = db.prepare(
-      'SELECT * FROM noticias WHERE id = ? AND publicada = 1'
-    ).get(id);
+
+    const noticia = await db.collection('noticias').findOne({
+      _id: new ObjectId(id),
+      publicada: true
+    });
 
     if (!noticia) {
       return res.status(404).json({ error: 'Notícia não encontrada' });

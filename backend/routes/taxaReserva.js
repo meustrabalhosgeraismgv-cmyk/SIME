@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { ObjectId } = require('mongodb');
+const { getDB } = require('../config/mongodb');
 const { authenticateToken } = require('../middleware/auth');
 
 const DISTANCIAS_PROVINCIAIS = {
@@ -29,7 +30,7 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 function calcularDistancia(provinciaOrigem, municipioOrigem, instituicao) {
-    if (instituicao.latitude && instituicao.longitude) {
+  if (instituicao.latitude && instituicao.longitude) {
     const MUNICIPIOS_COORDS = {
       'Huambo': [-12.7642, 15.7367], 'Caála': [-12.85, 15.56], 'Bailundo': [-12.7833, 15.9333],
       'Catchinga': [-12.65, 15.85], 'Mundundo': [-12.7, 15.65],
@@ -54,27 +55,46 @@ function calcularCustoPassagem(distanciaKm) {
   return Math.round(distanciaKm * PRECO_POR_KM * 2);
 }
 
-function contarNaFila(instituicaoId) {
-  const result = db.prepare(
-    "SELECT COUNT(*) as total FROM solicitacoes WHERE instituicao_id = ? AND estado IN ('pendente', 'agendado')"
-  ).get(instituicaoId);
-  return result.total || 0;
+async function contarNaFila(instituicaoId) {
+  const db = getDB();
+  const total = await db.collection('solicitacoes').countDocuments({
+    instituicao_id: instituicaoId,
+    estado: { $in: ['pendente', 'agendado'] }
+  });
+  return total || 0;
 }
 
-router.get('/calcular', authenticateToken, (req, res) => {
+router.get('/calcular', authenticateToken, async (req, res) => {
   try {
+    const db = getDB();
     const { instituicao_id, provincia_origem, municipio_origem } = req.query;
     if (!instituicao_id) return res.status(400).json({ error: 'instituicao_id obrigatório' });
 
-    const instituicao = db.prepare(`
-      SELECT i.*, m.nome as municipio_nome, p.nome as provincia_nome
-      FROM instituicoes i
-      LEFT JOIN municipios m ON i.municipio_id = m.id
-      LEFT JOIN provincias p ON m.provincia_id = p.id
-      WHERE i.id = ?
-    `).get(instituicao_id);
+    const instituicaoAgg = await db.collection('instituicoes').aggregate([
+      { $match: { _id: instituicao_id } },
+      { $lookup: {
+        from: 'municipios',
+        localField: 'municipio_id',
+        foreignField: '_id',
+        as: 'municipio'
+      } },
+      { $unwind: { path: '$municipio', preserveNullAndEmptyArrays: true } },
+      { $lookup: {
+        from: 'provincias',
+        localField: 'municipio.provincia_id',
+        foreignField: '_id',
+        as: 'provincia'
+      } },
+      { $unwind: { path: '$provincia', preserveNullAndEmptyArrays: true } },
+      { $addFields: {
+        municipio_nome: '$municipio.nome',
+        provincia_nome: '$provincia.nome'
+      } },
+      { $project: { municipio: 0, provincia: 0 } }
+    ]).toArray();
 
-    if (!instituicao) return res.status(404).json({ error: 'Instituição não encontrada' });
+    if (instituicaoAgg.length === 0) return res.status(404).json({ error: 'Instituição não encontrada' });
+    const instituicao = instituicaoAgg[0];
 
     const provOrigem = provincia_origem || 'Huambo';
     const munOrigem = municipio_origem || instituicao.municipio_nome || 'Huambo';
@@ -82,7 +102,7 @@ router.get('/calcular', authenticateToken, (req, res) => {
     const custoPassagemIdaVolta = calcularCustoPassagem(distancia);
     const taxaMaxima = Math.round(custoPassagemIdaVolta * PERCENT_MAX_TAXA);
 
-    const naFila = contarNaFila(instituicao_id);
+    const naFila = await contarNaFila(instituicao_id);
     const fatorFila = naFila > 20 ? 1.2 : naFila > 10 ? 1.1 : 1.0;
 
     const mesAtual = new Date().getMonth() + 1;

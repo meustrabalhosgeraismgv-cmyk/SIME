@@ -5,8 +5,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const db = require('./config/database');
-const initDatabase = require('./config/init-db');
+const { connectDB } = require('./config/mongodb');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,12 +18,10 @@ app.set('io', io);
 const PORT = process.env.PORT || 3001;
 
 async function start() {
-  await db.ready;
-
-  initDatabase();
+  await connectDB();
 
   try {
-    const { seedDatabase } = require('./seed-auto');
+    const { seedDatabase } = require('./seed-mongo');
     await seedDatabase();
   } catch (err) {
     console.error('Seed error:', err.message);
@@ -62,7 +59,7 @@ async function start() {
   app.use('/api/chat', require('./routes/chat'));
 
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({ status: 'ok', timestamp: new Date().toISOString(), db: 'mongodb' });
   });
 
   app.use((err, req, res, next) => {
@@ -71,7 +68,7 @@ async function start() {
   });
 
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor SIME rodando na porta ${PORT}`);
+    console.log(`Servidor SIME rodando na porta ${PORT} (MongoDB)`);
   });
 }
 

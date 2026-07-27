@@ -1,102 +1,152 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { ObjectId } = require('mongodb');
+const { getDB } = require('../config/mongodb');
 const { authenticateToken } = require('../middleware/auth');
 
-// Gestor: ver solicitações da sua instituição
-router.get('/gestor', authenticateToken, (req, res) => {
+router.get('/gestor', authenticateToken, async (req, res) => {
   try {
-    const solicitacoes = db.prepare(`
-      SELECT s.*, e.nome_completo as encarregado_nome, e.telefone as encarregado_telefone, c.titulo as comunicado_titulo
-      FROM solicitacoes s
-      LEFT JOIN encarregados e ON s.encarregado_id = e.id
-      LEFT JOIN comunicados c ON s.comunicado_id = c.id
-      WHERE s.instituicao_id = (SELECT entidade_id FROM usuarios WHERE id=?)
-      ORDER BY s.created_at DESC
-    `).all(req.user.id);
+    const db = getDB();
+    const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
+    const instituicaoId = usuario?.entidade_id;
+
+    const solicitacoes = await db.collection('solicitacoes').aggregate([
+      { $match: { instituicao_id: instituicaoId } },
+      { $lookup: { from: 'encarregados', localField: 'encarregado_id', foreignField: '_id', as: 'encarregado' } },
+      { $unwind: { path: '$encarregado', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'comunicados', localField: 'comunicado_id', foreignField: '_id', as: 'comunicado' } },
+      { $unwind: { path: '$comunicado', preserveNullAndEmptyArrays: true } },
+      { $addFields: {
+        encarregado_nome: '$encarregado.nome_completo',
+        encarregado_telefone: '$encarregado.telefone',
+        comunicado_titulo: '$comunicado.titulo'
+      } },
+      { $project: { encarregado: 0, comunicado: 0 } },
+      { $sort: { created_at: -1 } }
+    ]).toArray();
+
     res.json({ data: solicitacoes });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });
   }
 });
 
-// Encarregado: ver suas solicitações
-router.get('/encarregado', authenticateToken, (req, res) => {
+router.get('/encarregado', authenticateToken, async (req, res) => {
   try {
-    const solicitacoes = db.prepare(`
-      SELECT s.*, i.nome as instituicao_nome, c.titulo as comunicado_titulo
-      FROM solicitacoes s
-      LEFT JOIN instituicoes i ON s.instituicao_id = i.id
-      LEFT JOIN comunicados c ON s.comunicado_id = c.id
-      WHERE s.encarregado_id = (SELECT entidade_id FROM usuarios WHERE id=?)
-      ORDER BY s.created_at DESC
-    `).all(req.user.id);
+    const db = getDB();
+    const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
+    const encarregadoId = usuario?.entidade_id;
+
+    const solicitacoes = await db.collection('solicitacoes').aggregate([
+      { $match: { encarregado_id: encarregadoId } },
+      { $lookup: { from: 'instituicoes', localField: 'instituicao_id', foreignField: '_id', as: 'instituicao' } },
+      { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'comunicados', localField: 'comunicado_id', foreignField: '_id', as: 'comunicado' } },
+      { $unwind: { path: '$comunicado', preserveNullAndEmptyArrays: true } },
+      { $addFields: {
+        instituicao_nome: '$instituicao.nome',
+        comunicado_titulo: '$comunicado.titulo'
+      } },
+      { $project: { instituicao: 0, comunicado: 0 } },
+      { $sort: { created_at: -1 } }
+    ]).toArray();
+
     res.json({ data: solicitacoes });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });
   }
 });
 
-// Encarregado: criar solicitação
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
+    const db = getDB();
     const { instituicao_id, comunicado_id, aluno_nome, aluno_data_nascimento, aluno_sexo } = req.body;
-    const encarregado = db.prepare('SELECT entidade_id FROM usuarios WHERE id=?').get(req.user.id);
-    if (!encarregado) return res.status(400).json({ error: 'Encarregado não encontrado' });
+    const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
+    const encarregadoId = usuario?.entidade_id;
+    if (!encarregadoId) return res.status(400).json({ error: 'Encarregado não encontrado' });
 
-    const result = db.prepare(
-      'INSERT INTO solicitacoes (encarregado_id, instituicao_id, comunicado_id, aluno_nome, aluno_data_nascimento, aluno_sexo) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(encarregado.entidade_id, instituicao_id, comunicado_id || null, aluno_nome, aluno_data_nascimento || null, aluno_sexo || null);
+    const now = new Date();
+    const result = await db.collection('solicitacoes').insertOne({
+      encarregado_id: encarregadoId,
+      instituicao_id,
+      comunicado_id: comunicado_id || null,
+      aluno_nome,
+      aluno_data_nascimento: aluno_data_nascimento || null,
+      aluno_sexo: aluno_sexo || null,
+      estado: 'pendente',
+      created_at: now
+    });
 
-    // Se tem comunicado com valor, criar pagamento de reserva
     if (comunicado_id) {
-      const comunicado = db.prepare('SELECT * FROM comunicados WHERE id=?').get(comunicado_id);
+      const comunicado = await db.collection('comunicados').findOne({ _id: new ObjectId(comunicado_id) });
       if (comunicado && comunicado.valor > 0) {
         const dataLimite = new Date();
         dataLimite.setDate(dataLimite.getDate() + 3);
-        db.prepare(
-          'INSERT INTO pagamentos (solicitacao_id, instituicao_id, encarregado_id, valor, tipo, data_limite) VALUES (?, ?, ?, ?, ?, ?)'
-        ).run(result.lastInsertRowid, instituicao_id, encarregado.entidade_id, comunicado.valor, 'reserva', dataLimite.toISOString());
+        await db.collection('pagamentos').insertOne({
+          solicitacao_id: result.insertedId,
+          instituicao_id,
+          encarregado_id: encarregadoId,
+          valor: comunicado.valor,
+          tipo: 'reserva',
+          data_limite: dataLimite,
+          estado: 'pendente',
+          created_at: now
+        });
       }
     }
 
-    res.status(201).json({ id: result.lastInsertRowid, message: 'Solicitação criada' });
+    res.status(201).json({ id: result.insertedId, message: 'Solicitação criada' });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });
   }
 });
 
-// Gestor: aceitar/rejeitar
-router.put('/:id/aceitar', authenticateToken, (req, res) => {
+router.put('/:id/aceitar', authenticateToken, async (req, res) => {
   try {
-    db.prepare("UPDATE solicitacoes SET estado='aceite', data_resposta=CURRENT_TIMESTAMP WHERE id=?").run(req.params.id);
+    const db = getDB();
+    await db.collection('solicitacoes').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { estado: 'aceite', data_resposta: new Date() } }
+    );
     res.json({ message: 'Aceite' });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });
   }
 });
 
-router.put('/:id/rejeitar', authenticateToken, (req, res) => {
+router.put('/:id/rejeitar', authenticateToken, async (req, res) => {
   try {
-    db.prepare("UPDATE solicitacoes SET estado='rejeitada', data_resposta=CURRENT_TIMESTAMP, observacoes=? WHERE id=?").run(req.body.observacoes || '', req.params.id);
+    const db = getDB();
+    await db.collection('solicitacoes').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { estado: 'rejeitada', data_resposta: new Date(), observacoes: req.body.observacoes || '' } }
+    );
     res.json({ message: 'Rejeitada' });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });
   }
 });
 
-router.put('/:id/agendar', authenticateToken, (req, res) => {
+router.put('/:id/agendar', authenticateToken, async (req, res) => {
   try {
-    db.prepare("UPDATE solicitacoes SET estado='agendado', observacoes=? WHERE id=?").run(req.body.observacoes || '', req.params.id);
+    const db = getDB();
+    await db.collection('solicitacoes').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { estado: 'agendado', observacoes: req.body.observacoes || '' } }
+    );
     res.json({ message: 'Agendado' });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });
   }
 });
 
-router.put('/:id/inscrever', authenticateToken, (req, res) => {
+router.put('/:id/inscrever', authenticateToken, async (req, res) => {
   try {
-    db.prepare("UPDATE solicitacoes SET estado='inscrito', data_resposta=CURRENT_TIMESTAMP WHERE id=?").run(req.params.id);
+    const db = getDB();
+    await db.collection('solicitacoes').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { estado: 'inscrito', data_resposta: new Date() } }
+    );
     res.json({ message: 'Inscrito' });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });

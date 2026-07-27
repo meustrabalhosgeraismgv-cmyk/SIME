@@ -1,43 +1,55 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { ObjectId } = require('mongodb');
+const { getDB } = require('../config/mongodb');
 const { authenticateToken } = require('../middleware/auth');
 
-// GET todas as notícias (público) ou da instituição (gestor)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
+    const db = getDB();
     const { instituicao_id, page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
-    let query = 'SELECT n.*, i.nome as instituicao_nome FROM noticias n LEFT JOIN instituicoes i ON n.instituicao_id = i.id WHERE n.publicada = 1';
-    const params = [];
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const filter = { publicada: 1 };
 
     if (instituicao_id) {
-      query += ' AND n.instituicao_id = ?';
-      params.push(instituicao_id);
+      filter.instituicao_id = instituicao_id;
     }
 
-    query += ' ORDER BY n.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const noticias = await db.collection('noticias').aggregate([
+      { $match: filter },
+      { $lookup: { from: 'instituicoes', localField: 'instituicao_id', foreignField: '_id', as: 'instituicao' } },
+      { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
+      { $addFields: { instituicao_nome: '$instituicao.nome' } },
+      { $project: { instituicao: 0 } },
+      { $sort: { created_at: -1 } },
+      { $skip: offset },
+      { $limit: parseInt(limit) }
+    ]).toArray();
 
-    const noticias = db.prepare(query).all(...params);
     res.json({ data: noticias });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar notícias' });
   }
 });
 
-router.get('/destaque', (req, res) => {
+router.get('/destaque', async (req, res) => {
   try {
-    const noticias = db.prepare('SELECT * FROM noticias WHERE publicada = 1 AND destaque = 1 ORDER BY created_at DESC LIMIT 5').all();
+    const db = getDB();
+    const noticias = await db.collection('noticias')
+      .find({ publicada: 1, destaque: 1 })
+      .sort({ created_at: -1 })
+      .limit(5)
+      .toArray();
     res.json(noticias);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar destaque' });
   }
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const noticia = db.prepare('SELECT * FROM noticias WHERE id = ?').get(req.params.id);
+    const db = getDB();
+    const noticia = await db.collection('noticias').findOne({ _id: new ObjectId(req.params.id) });
     if (!noticia) return res.status(404).json({ error: 'Não encontrada' });
     res.json(noticia);
   } catch (error) {
@@ -45,34 +57,53 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// CRUD gestor
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
+    const db = getDB();
     const { titulo, resumo, conteudo, categoria, imagem_url, instituicao_id, destaque } = req.body;
-    const result = db.prepare(
-      'INSERT INTO noticias (titulo, resumo, conteudo, categoria, imagem_url, autor, instituicao_id, destaque) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(titulo, resumo, conteudo, categoria || 'geral', imagem_url || null, req.user.username, instituicao_id || null, destaque || 0);
-    res.status(201).json({ id: result.lastInsertRowid, message: 'Notícia criada' });
+
+    const result = await db.collection('noticias').insertOne({
+      titulo,
+      resumo,
+      conteudo,
+      categoria: categoria || 'geral',
+      imagem_url: imagem_url || null,
+      autor: req.user.username,
+      instituicao_id: instituicao_id || null,
+      destaque: destaque || 0,
+      publicada: 1,
+      created_at: new Date()
+    });
+
+    res.status(201).json({ id: result.insertedId, message: 'Notícia criada' });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao criar notícia' });
   }
 });
 
-router.put('/:id', authenticateToken, (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
+    const db = getDB();
     const { titulo, resumo, conteudo, categoria, imagem_url, destaque, publicada } = req.body;
-    db.prepare(
-      'UPDATE noticias SET titulo=?, resumo=?, conteudo=?, categoria=?, imagem_url=?, destaque=?, publicada=? WHERE id=?'
-    ).run(titulo, resumo, conteudo, categoria, imagem_url, destaque || 0, publicada ?? 1, req.params.id);
+
+    await db.collection('noticias').updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: {
+        titulo, resumo, conteudo, categoria, imagem_url,
+        destaque: destaque || 0,
+        publicada: publicada ?? 1
+      } }
+    );
     res.json({ message: 'Atualizada' });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });
   }
 });
 
-router.delete('/:id', authenticateToken, (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    db.prepare('DELETE FROM noticias WHERE id=?').run(req.params.id);
+    const db = getDB();
+    await db.collection('noticias').deleteOne({ _id: new ObjectId(req.params.id) });
     res.json({ message: 'Removida' });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });

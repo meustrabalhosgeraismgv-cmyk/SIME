@@ -1,54 +1,72 @@
-const db = require('../config/database');
+const { getDB } = require('../config/mongodb');
+const { ObjectId } = require('mongodb');
 
-const getProfessores = (req, res) => {
+const getProfessores = async (req, res) => {
   try {
+    const db = getDB();
     const { page = 1, limit = 10, search = '', instituicao_id = '', estado = '' } = req.query;
-    const offset = (page - 1) * limit;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
-    let query = `
-      SELECT p.*, i.nome as instituicao_nome 
-      FROM professores p 
-      LEFT JOIN instituicoes i ON p.instituicao_id = i.id 
-      WHERE 1=1
-    `;
-    let countQuery = 'SELECT COUNT(*) as total FROM professores WHERE 1=1';
-    const params = [];
-    const countParams = [];
-
+    const matchStage = {};
     if (search) {
-      query += ' AND (p.nome_completo LIKE ? OR p.numero_funcionario LIKE ?)';
-      countQuery += ' AND (nome_completo LIKE ? OR numero_funcionario LIKE ?)';
-      params.push(`%${search}%`, `%${search}%`);
-      countParams.push(`%${search}%`, `%${search}%`);
+      matchStage.$or = [
+        { nome_completo: { $regex: search, $options: 'i' } },
+        { numero_funcionario: { $regex: search, $options: 'i' } }
+      ];
     }
-
     if (instituicao_id) {
-      query += ' AND p.instituicao_id = ?';
-      countQuery += ' AND instituicao_id = ?';
-      params.push(instituicao_id);
-      countParams.push(instituicao_id);
+      matchStage.instituicao_id = new ObjectId(instituicao_id);
     }
-
     if (estado) {
-      query += ' AND p.estado = ?';
-      countQuery += ' AND estado = ?';
-      params.push(estado);
-      countParams.push(estado);
+      matchStage.estado = estado;
     }
 
-    query += ' ORDER BY p.nome_completo LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const total = await db.collection('professores').countDocuments(matchStage);
 
-    const professores = db.prepare(query).all(...params);
-    const total = db.prepare(countQuery).get(...countParams);
+    const pipeline = [
+      { $match: matchStage },
+      { $sort: { nome_completo: 1 } },
+      { $skip: skip },
+      { $limit: limitNum },
+      {
+        $lookup: {
+          from: 'instituicoes',
+          localField: 'instituicao_id',
+          foreignField: '_id',
+          as: 'instituicao'
+        }
+      },
+      { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          nome_completo: 1,
+          bi: 1,
+          data_nascimento: 1,
+          telefone: 1,
+          email: 1,
+          formacao: 1,
+          especialidade: 1,
+          numero_funcionario: 1,
+          instituicao_id: 1,
+          estado: 1,
+          created_at: 1,
+          instituicao_nome: '$instituicao.nome'
+        }
+      }
+    ];
+
+    const professores = await db.collection('professores').aggregate(pipeline).toArray();
 
     res.json({
       data: professores,
       pagination: {
-        total: total.total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total.total / limit)
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -56,26 +74,52 @@ const getProfessores = (req, res) => {
   }
 };
 
-const getProfessorById = (req, res) => {
+const getProfessorById = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
-    const professor = db.prepare(`
-      SELECT p.*, i.nome as instituicao_nome 
-      FROM professores p 
-      LEFT JOIN instituicoes i ON p.instituicao_id = i.id 
-      WHERE p.id = ?
-    `).get(id);
 
-    if (!professor) {
+    const pipeline = [
+      { $match: { _id: new ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'instituicoes',
+          localField: 'instituicao_id',
+          foreignField: '_id',
+          as: 'instituicao'
+        }
+      },
+      { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          nome_completo: 1,
+          bi: 1,
+          data_nascimento: 1,
+          telefone: 1,
+          email: 1,
+          formacao: 1,
+          especialidade: 1,
+          numero_funcionario: 1,
+          instituicao_id: 1,
+          estado: 1,
+          created_at: 1,
+          instituicao_nome: '$instituicao.nome'
+        }
+      }
+    ];
+
+    const result = await db.collection('professores').aggregate(pipeline).toArray();
+    if (result.length === 0) {
       return res.status(404).json({ error: 'Professor não encontrado' });
     }
 
-    const turmas = db.prepare(`
-      SELECT t.*
-      FROM turmas t 
-      WHERE t.professor_titular_id = ?
-      ORDER BY t.ano_letivo DESC
-    `).all(id);
+    const professor = result[0];
+
+    const turmas = await db.collection('turmas')
+      .find({ professor_titular_id: new ObjectId(id) })
+      .sort({ ano_letivo: -1 })
+      .toArray();
 
     res.json({ ...professor, turmas });
   } catch (error) {
@@ -83,36 +127,66 @@ const getProfessorById = (req, res) => {
   }
 };
 
-const createProfessor = (req, res) => {
+const createProfessor = async (req, res) => {
   try {
+    const db = getDB();
     const { nome_completo, bi, data_nascimento, telefone, email, formacao, especialidade, numero_funcionario, instituicao_id } = req.body;
 
-    const result = db.prepare(`
-      INSERT INTO professores (nome_completo, bi, data_nascimento, telefone, email, formacao, especialidade, numero_funcionario, instituicao_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(nome_completo, bi, data_nascimento, telefone, email, formacao, especialidade, numero_funcionario, instituicao_id);
-
-    db.prepare('UPDATE instituicoes SET total_professores = total_professores + 1 WHERE id = ?').run(instituicao_id);
-
-    res.status(201).json({ message: 'Professor registado com sucesso', id: result.lastInsertRowid });
-  } catch (error) {
-    if (error.message.includes('UNIQUE constraint failed')) {
+    const existing = await db.collection('professores').findOne({
+      $or: [{ bi }, { numero_funcionario }]
+    });
+    if (existing) {
       return res.status(400).json({ error: 'BI ou número de funcionário já existe' });
     }
+
+    const result = await db.collection('professores').insertOne({
+      nome_completo,
+      bi,
+      data_nascimento,
+      telefone,
+      email,
+      formacao,
+      especialidade,
+      numero_funcionario,
+      instituicao_id: new ObjectId(instituicao_id),
+      estado: 'ativo',
+      created_at: new Date()
+    });
+
+    await db.collection('instituicoes').updateOne(
+      { _id: new ObjectId(instituicao_id) },
+      { $inc: { total_professores: 1 } }
+    );
+
+    res.status(201).json({ message: 'Professor registado com sucesso', id: result.insertedId.toString() });
+  } catch (error) {
     res.status(500).json({ error: 'Erro ao criar professor' });
   }
 };
 
-const updateProfessor = (req, res) => {
+const updateProfessor = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
     const { nome_completo, bi, data_nascimento, telefone, email, formacao, especialidade, numero_funcionario, instituicao_id, estado } = req.body;
 
-    db.prepare(`
-      UPDATE professores 
-      SET nome_completo = ?, bi = ?, data_nascimento = ?, telefone = ?, email = ?, formacao = ?, especialidade = ?, numero_funcionario = ?, instituicao_id = ?, estado = ?
-      WHERE id = ?
-    `).run(nome_completo, bi, data_nascimento, telefone, email, formacao, especialidade, numero_funcionario, instituicao_id, estado, id);
+    const updateData = {
+      nome_completo,
+      bi,
+      data_nascimento,
+      telefone,
+      email,
+      formacao,
+      especialidade,
+      numero_funcionario,
+      instituicao_id: new ObjectId(instituicao_id),
+      estado
+    };
+
+    await db.collection('professores').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
 
     res.json({ message: 'Professor atualizado com sucesso' });
   } catch (error) {
@@ -120,17 +194,22 @@ const updateProfessor = (req, res) => {
   }
 };
 
-const deleteProfessor = (req, res) => {
+const deleteProfessor = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
-    const professor = db.prepare('SELECT instituicao_id FROM professores WHERE id = ?').get(id);
-    
-    db.prepare('DELETE FROM professores WHERE id = ?').run(id);
-    
-    if (professor) {
-      db.prepare('UPDATE instituicoes SET total_professores = total_professores - 1 WHERE id = ?').run(professor.instituicao_id);
+
+    const professor = await db.collection('professores').findOne({ _id: new ObjectId(id) });
+
+    await db.collection('professores').deleteOne({ _id: new ObjectId(id) });
+
+    if (professor && professor.instituicao_id) {
+      await db.collection('instituicoes').updateOne(
+        { _id: professor.instituicao_id },
+        { $inc: { total_professores: -1 } }
+      );
     }
-    
+
     res.json({ message: 'Professor removido com sucesso' });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao remover professor' });

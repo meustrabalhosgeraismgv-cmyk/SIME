@@ -1,21 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../config/database');
+const { ObjectId } = require('mongodb');
+const { getDB } = require('../config/mongodb');
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
+    const db = getDB();
     const { ano_letivo } = req.query;
-    let query = 'SELECT * FROM calendario';
-    const params = [];
-    
+    const filter = {};
     if (ano_letivo) {
-      query += ' WHERE ano_letivo = ?';
-      params.push(ano_letivo);
+      filter.ano_letivo = ano_letivo;
     }
-    
-    query += ' ORDER BY data_inicio ASC';
-    
-    const eventos = db.prepare(query).all(...params);
+
+    const eventos = await db.collection('calendario')
+      .find(filter)
+      .sort({ data_inicio: 1 })
+      .toArray();
+
     res.json(eventos);
   } catch (error) {
     console.error('Erro ao buscar calendário:', error);
@@ -23,9 +24,10 @@ router.get('/', (req, res) => {
   }
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const evento = db.prepare('SELECT * FROM calendario WHERE id = ?').get(req.params.id);
+    const db = getDB();
+    const evento = await db.collection('calendario').findOne({ _id: new ObjectId(req.params.id) });
     if (!evento) {
       return res.status(404).json({ error: 'Evento não encontrado' });
     }

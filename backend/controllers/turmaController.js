@@ -1,55 +1,77 @@
-const db = require('../config/database');
+const { getDB } = require('../config/mongodb');
+const { ObjectId } = require('mongodb');
 
-const getTurmas = (req, res) => {
+const getTurmas = async (req, res) => {
   try {
+    const db = getDB();
     const { page = 1, limit = 10, instituicao_id = '', ano_letivo = '', nivel = '' } = req.query;
-    const offset = (page - 1) * limit;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
-    let query = `
-      SELECT t.*, i.nome as instituicao_nome, p.nome as professor_nome 
-      FROM turmas t 
-      LEFT JOIN instituicoes i ON t.instituicao_id = i.id 
-      LEFT JOIN professores p ON t.professor_titular_id = p.id 
-      WHERE 1=1
-    `;
-    let countQuery = 'SELECT COUNT(*) as total FROM turmas WHERE 1=1';
-    const params = [];
-    const countParams = [];
-
+    const matchStage = {};
     if (instituicao_id) {
-      query += ' AND t.instituicao_id = ?';
-      countQuery += ' AND instituicao_id = ?';
-      params.push(instituicao_id);
-      countParams.push(instituicao_id);
+      matchStage.instituicao_id = new ObjectId(instituicao_id);
     }
-
     if (ano_letivo) {
-      query += ' AND t.ano_letivo = ?';
-      countQuery += ' AND ano_letivo = ?';
-      params.push(ano_letivo);
-      countParams.push(ano_letivo);
+      matchStage.ano_letivo = ano_letivo;
     }
-
     if (nivel) {
-      query += ' AND t.nivel = ?';
-      countQuery += ' AND nivel = ?';
-      params.push(nivel);
-      countParams.push(nivel);
+      matchStage.nivel = nivel;
     }
 
-    query += ' ORDER BY t.ano_letivo DESC, t.nome LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const total = await db.collection('turmas').countDocuments(matchStage);
 
-    const turmas = db.prepare(query).all(...params);
-    const total = db.prepare(countQuery).get(...countParams);
+    const pipeline = [
+      { $match: matchStage },
+      { $sort: { ano_letivo: -1, nome: 1 } },
+      { $skip: skip },
+      { $limit: limitNum },
+      {
+        $lookup: {
+          from: 'instituicoes',
+          localField: 'instituicao_id',
+          foreignField: '_id',
+          as: 'instituicao'
+        }
+      },
+      { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'professores',
+          localField: 'professor_titular_id',
+          foreignField: '_id',
+          as: 'professor'
+        }
+      },
+      { $unwind: { path: '$professor', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          nome: 1,
+          ano_letivo: 1,
+          nivel: 1,
+          instituicao_id: 1,
+          professor_titular_id: 1,
+          vagas: 1,
+          vagas_ocupadas: 1,
+          estado: 1,
+          created_at: 1,
+          instituicao_nome: '$instituicao.nome',
+          professor_nome: '$professor.nome_completo'
+        }
+      }
+    ];
+
+    const turmas = await db.collection('turmas').aggregate(pipeline).toArray();
 
     res.json({
       data: turmas,
       pagination: {
-        total: total.total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total.total / limit)
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
@@ -57,28 +79,81 @@ const getTurmas = (req, res) => {
   }
 };
 
-const getTurmaById = (req, res) => {
+const getTurmaById = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
-    const turma = db.prepare(`
-      SELECT t.*, i.nome as instituicao_nome, p.nome as professor_nome 
-      FROM turmas t 
-      LEFT JOIN instituicoes i ON t.instituicao_id = i.id 
-      LEFT JOIN professores p ON t.professor_titular_id = p.id 
-      WHERE t.id = ?
-    `).get(id);
 
-    if (!turma) {
+    const pipeline = [
+      { $match: { _id: new ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'instituicoes',
+          localField: 'instituicao_id',
+          foreignField: '_id',
+          as: 'instituicao'
+        }
+      },
+      { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'professores',
+          localField: 'professor_titular_id',
+          foreignField: '_id',
+          as: 'professor'
+        }
+      },
+      { $unwind: { path: '$professor', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          nome: 1,
+          ano_letivo: 1,
+          nivel: 1,
+          instituicao_id: 1,
+          professor_titular_id: 1,
+          vagas: 1,
+          vagas_ocupadas: 1,
+          estado: 1,
+          created_at: 1,
+          instituicao_nome: '$instituicao.nome',
+          professor_nome: '$professor.nome_completo'
+        }
+      }
+    ];
+
+    const result = await db.collection('turmas').aggregate(pipeline).toArray();
+    if (result.length === 0) {
       return res.status(404).json({ error: 'Turma não encontrada' });
     }
 
-    const alunos = db.prepare(`
-      SELECT a.*, m.estado as matricula_estado
-      FROM alunos a
-      INNER JOIN matriculas m ON a.id = m.aluno_id
-      WHERE m.turma_id = ? AND m.estado = 'ativa'
-      ORDER BY a.nome_completo
-    `).all(id);
+    const turma = result[0];
+
+    const alunos = await db.collection('alunos').aggregate([
+      {
+        $lookup: {
+          from: 'matriculas',
+          let: { alunoId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $and: [{ $eq: ['$aluno_id', '$$alunoId'] }, { $eq: ['$turma_id', new ObjectId(id)] }, { $eq: ['$estado', 'ativa'] }] } } }
+          ],
+          as: 'matricula'
+        }
+      },
+      { $unwind: { path: '$matricula', preserveNullAndEmptyArrays: false } },
+      {
+        $project: {
+          _id: 1,
+          nome_completo: 1,
+          data_nascimento: 1,
+          sexo: 1,
+          numero_estudante: 1,
+          estado: 1,
+          matricula_estado: { $arrayElemAt: ['$matricula.estado', 0] }
+        }
+      },
+      { $sort: { nome_completo: 1 } }
+    ]).toArray();
 
     res.json({ ...turma, alunos });
   } catch (error) {
@@ -86,31 +161,48 @@ const getTurmaById = (req, res) => {
   }
 };
 
-const createTurma = (req, res) => {
+const createTurma = async (req, res) => {
   try {
+    const db = getDB();
     const { nome, ano_letivo, nivel, instituicao_id, professor_titular_id, vagas } = req.body;
 
-    const result = db.prepare(`
-      INSERT INTO turmas (nome, ano_letivo, nivel, instituicao_id, professor_titular_id, vagas)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(nome, ano_letivo, nivel, instituicao_id, professor_titular_id, vagas);
+    const result = await db.collection('turmas').insertOne({
+      nome,
+      ano_letivo,
+      nivel,
+      instituicao_id: new ObjectId(instituicao_id),
+      professor_titular_id: professor_titular_id ? new ObjectId(professor_titular_id) : null,
+      vagas,
+      vagas_ocupadas: 0,
+      estado: 'ativa',
+      created_at: new Date()
+    });
 
-    res.status(201).json({ message: 'Turma criada com sucesso', id: result.lastInsertRowid });
+    res.status(201).json({ message: 'Turma criada com sucesso', id: result.insertedId.toString() });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao criar turma' });
   }
 };
 
-const updateTurma = (req, res) => {
+const updateTurma = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
     const { nome, ano_letivo, nivel, instituicao_id, professor_titular_id, vagas } = req.body;
 
-    db.prepare(`
-      UPDATE turmas 
-      SET nome = ?, ano_letivo = ?, nivel = ?, instituicao_id = ?, professor_titular_id = ?, vagas = ?
-      WHERE id = ?
-    `).run(nome, ano_letivo, nivel, instituicao_id, professor_titular_id, vagas, id);
+    const updateData = {
+      nome,
+      ano_letivo,
+      nivel,
+      instituicao_id: new ObjectId(instituicao_id),
+      professor_titular_id: professor_titular_id ? new ObjectId(professor_titular_id) : null,
+      vagas
+    };
+
+    await db.collection('turmas').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    );
 
     res.json({ message: 'Turma atualizada com sucesso' });
   } catch (error) {
@@ -118,10 +210,12 @@ const updateTurma = (req, res) => {
   }
 };
 
-const deleteTurma = (req, res) => {
+const deleteTurma = async (req, res) => {
   try {
+    const db = getDB();
     const { id } = req.params;
-    db.prepare('DELETE FROM turmas WHERE id = ?').run(id);
+
+    await db.collection('turmas').deleteOne({ _id: new ObjectId(id) });
     res.json({ message: 'Turma removida com sucesso' });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao remover turma' });
