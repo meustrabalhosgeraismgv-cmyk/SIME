@@ -147,24 +147,53 @@ export default function MapaHuambo({ escolas = [], compact = false, onSelectEsco
       });
       userMarkerRef.current = L.marker(origin, { icon: userIcon }).addTo(map);
 
-      const R = 6371;
-      const dLat = (dest[0] - origin[0]) * Math.PI / 180;
-      const dLng = (dest[1] - origin[1]) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(origin[0] * Math.PI / 180) * Math.cos(dest[0] * Math.PI / 180) *
-        Math.sin(dLng/2) * Math.sin(dLng/2);
-      const distanceKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
       const isWalk = activeMode === 'walk';
       const isBike = activeMode === 'bike';
-      const speedKmh = isWalk ? 5 : isBike ? 15 : 40;
-      const durationMin = Math.round((distanceKm / speedKmh) * 60);
+      let distanceKm = 0;
+      let durationMin = 0;
+      let routeCoords = [origin, dest];
+      let usedOsrm = false;
 
-      const routeLine = L.polyline([origin, dest], {
+      try {
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin[1]},${origin[0]};${dest[1]},${dest[0]}?overview=full&geometries=geojson&steps=true`;
+        const res = await fetch(osrmUrl);
+        const data = await res.json();
+
+        if (data.code === 'Ok' && data.routes.length > 0) {
+          const route = data.routes[0];
+          routeCoords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+          distanceKm = route.distance / 1000;
+
+          if (isWalk) {
+            durationMin = Math.round((distanceKm / 5) * 60);
+          } else if (isBike) {
+            durationMin = Math.round((distanceKm / 15) * 60);
+          } else {
+            durationMin = Math.round(route.duration / 60);
+          }
+          usedOsrm = true;
+        }
+      } catch (e) {
+        console.warn('OSRM falhou, usando linha recta:', e);
+      }
+
+      if (!usedOsrm) {
+        const R = 6371;
+        const dLat = (dest[0] - origin[0]) * Math.PI / 180;
+        const dLng = (dest[1] - origin[1]) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(origin[0] * Math.PI / 180) * Math.cos(dest[0] * Math.PI / 180) *
+          Math.sin(dLng/2) * Math.sin(dLng/2);
+        distanceKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const speedKmh = isWalk ? 5 : isBike ? 15 : 40;
+        durationMin = Math.round((distanceKm / speedKmh) * 60);
+      }
+
+      const routeLine = L.polyline(routeCoords, {
         color: isWalk ? '#FF9800' : isBike ? '#4CAF50' : '#2196F3',
-        weight: 3,
+        weight: usedOsrm ? 5 : 3,
         opacity: 0.8,
-        dashArray: '10, 6',
+        dashArray: usedOsrm ? null : '10, 6',
       }).addTo(map);
 
       routeRef.current = routeLine;
