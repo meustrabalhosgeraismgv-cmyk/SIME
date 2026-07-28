@@ -147,46 +147,37 @@ export default function MapaHuambo({ escolas = [], compact = false, onSelectEsco
       });
       userMarkerRef.current = L.marker(origin, { icon: userIcon }).addTo(map);
 
-      const url = `https://router.project-osrm.org/route/v1/driving/${origin[1]},${origin[0]};${dest[1]},${dest[0]}?overview=full&geometries=geojson&steps=true`;
+      const R = 6371;
+      const dLat = (dest[0] - origin[0]) * Math.PI / 180;
+      const dLng = (dest[1] - origin[1]) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(origin[0] * Math.PI / 180) * Math.cos(dest[0] * Math.PI / 180) *
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+      const distanceKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-      const res = await fetch(url);
-      const data = await res.json();
+      const isWalk = activeMode === 'walk';
+      const isBike = activeMode === 'bike';
+      const speedKmh = isWalk ? 5 : isBike ? 15 : 40;
+      const durationMin = Math.round((distanceKm / speedKmh) * 60);
 
-      if (data.code === 'Ok' && data.routes.length > 0) {
-        const route = data.routes[0];
-        const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+      const routeLine = L.polyline([origin, dest], {
+        color: isWalk ? '#FF9800' : isBike ? '#4CAF50' : '#2196F3',
+        weight: 3,
+        opacity: 0.8,
+        dashArray: '10, 6',
+      }).addTo(map);
 
-        const isWalk = activeMode === 'walk';
-        const isBike = activeMode === 'bike';
+      routeRef.current = routeLine;
 
-        const routeLine = L.polyline(coords, {
-          color: isWalk ? '#FF9800' : isBike ? '#4CAF50' : '#2196F3',
-          weight: 5,
-          opacity: 0.8,
-          dashArray: isWalk ? '8, 8' : null,
-        }).addTo(map);
+      setRouteInfo({
+        distancia: distanceKm.toFixed(1),
+        duracao: durationMin,
+        modo: activeMode,
+        passos: 0,
+        googleMapsUrl: `https://www.google.com/maps/dir/${origin[0]},${origin[1]}/${dest[0]},${dest[1]}/@${(origin[0]+dest[0])/2},${(origin[1]+dest[1])/2},12z`,
+      });
 
-        routeRef.current = routeLine;
-
-        const distanceKm = route.distance / 1000;
-        let durationMin;
-        if (isWalk) {
-          durationMin = Math.round((distanceKm / 5) * 60);
-        } else if (isBike) {
-          durationMin = Math.round((distanceKm / 15) * 60);
-        } else {
-          durationMin = Math.round(route.duration / 60);
-        }
-
-        setRouteInfo({
-          distancia: distanceKm.toFixed(1),
-          duracao: durationMin,
-          modo: activeMode,
-          passos: route.legs[0]?.steps?.length || 0,
-        });
-
-        map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
-      }
+      map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
     } catch (err) {
       console.error('Erro na rota:', err);
     } finally {
@@ -512,6 +503,13 @@ export default function MapaHuambo({ escolas = [], compact = false, onSelectEsco
                     <Footprints className="w-4 h-4" />
                   </button>
                 </div>
+                {routeInfo.googleMapsUrl && (
+                  <a href={routeInfo.googleMapsUrl} target="_blank" rel="noopener noreferrer"
+                    className="px-3 py-2 bg-green-500 text-white rounded-lg text-xs font-semibold hover:bg-green-600 flex items-center gap-1">
+                    <Navigation className="w-3.5 h-3.5" />
+                    Navegar
+                  </a>
+                )}
                 <button onClick={clearRoute} className="p-2 hover:bg-gray-100 rounded-lg">
                   <X className="w-4 h-4 text-gray-400" />
                 </button>
