@@ -9,17 +9,27 @@ const getInstituicoes = async (req, res) => {
     const { page = 1, limit = 10, search = '', tipo = '', municipio_id = '' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const match = {};
-    if (search) match.nome = { $regex: search, $options: 'i' };
-    if (tipo) match.tipo = tipo;
-    if (municipio_id) match.municipio_id = new ObjectId(municipio_id);
+    const typeMatch = {};
+    if (tipo) typeMatch.tipo = tipo;
+    if (municipio_id) typeMatch.municipio_id = municipio_id;
 
     const pipeline = [
-      { $match: match },
+      { $match: typeMatch },
+      {
+        $addFields: {
+          municipio_id_obj: { $toObjectId: '$municipio_id' },
+          latitude: { $ifNull: ['$latitude', '$lat'] },
+          longitude: { $ifNull: ['$longitude', '$lng'] },
+          vagas_totais: { $ifNull: ['$vagas_totais', '$vt'] },
+          vagas_disponiveis: { $ifNull: ['$vagas_disponiveis', '$vd'] },
+          responsavel: { $ifNull: ['$responsavel', '$dir'] },
+          telefone: { $ifNull: ['$telefone', '$tel'] },
+        }
+      },
       {
         $lookup: {
           from: 'municipios',
-          localField: 'municipio_id',
+          localField: 'municipio_id_obj',
           foreignField: '_id',
           as: 'municipio'
         }
@@ -36,11 +46,18 @@ const getInstituicoes = async (req, res) => {
       { $unwind: { path: '$provincia', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
-          municipio_nome: '$municipio.nome',
+          municipio_nome: { $ifNull: ['$municipio.nome', '$mun'] },
           provincia_nome: '$provincia.nome'
         }
       },
-      { $project: { municipio: 0, provincia: 0 } },
+      ...(search ? [{ $match: {
+        $or: [
+          { nome: { $regex: search, $options: 'i' } },
+          { municipio_nome: { $regex: search, $options: 'i' } },
+          { tipo: { $regex: search, $options: 'i' } }
+        ]
+      }}] : []),
+      { $project: { municipio: 0, provincia: 0, municipio_id_obj: 0, mun: 0, vt: 0, vd: 0, dir: 0, lat: 0, lng: 0, tel: 0 } },
       { $sort: { nome: 1 } },
       { $facet: {
           data: [{ $skip: skip }, { $limit: parseInt(limit) }],
@@ -74,9 +91,20 @@ const getInstituicaoById = async (req, res) => {
     const pipeline = [
       { $match: { _id: new ObjectId(id) } },
       {
+        $addFields: {
+          municipio_id_obj: { $toObjectId: '$municipio_id' },
+          latitude: { $ifNull: ['$latitude', '$lat'] },
+          longitude: { $ifNull: ['$longitude', '$lng'] },
+          vagas_totais: { $ifNull: ['$vagas_totais', '$vt'] },
+          vagas_disponiveis: { $ifNull: ['$vagas_disponiveis', '$vd'] },
+          responsavel: { $ifNull: ['$responsavel', '$dir'] },
+          telefone: { $ifNull: ['$telefone', '$tel'] },
+        }
+      },
+      {
         $lookup: {
           from: 'municipios',
-          localField: 'municipio_id',
+          localField: 'municipio_id_obj',
           foreignField: '_id',
           as: 'municipio'
         }
@@ -93,11 +121,11 @@ const getInstituicaoById = async (req, res) => {
       { $unwind: { path: '$provincia', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
-          municipio_nome: '$municipio.nome',
+          municipio_nome: { $ifNull: ['$municipio.nome', '$mun'] },
           provincia_nome: '$provincia.nome'
         }
       },
-      { $project: { municipio: 0, provincia: 0 } }
+      { $project: { municipio: 0, provincia: 0, municipio_id_obj: 0, mun: 0, vt: 0, vd: 0, dir: 0, lat: 0, lng: 0, tel: 0 } }
     ];
 
     const [instituicao] = await db.collection(COLLECTION).aggregate(pipeline).toArray();
