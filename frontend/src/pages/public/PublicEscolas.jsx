@@ -159,7 +159,7 @@ export default function PublicEscolas() {
             Pesquisar Escolas
           </h1>
           <p className="text-lg text-white/90 max-w-2xl mx-auto">
-            Encontre instituições de ensino na província do Huambo
+            Encontre instituições de ensino em Angola
           </p>
 
           <div className="flex items-center justify-center gap-2 mt-4">

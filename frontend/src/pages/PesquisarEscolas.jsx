@@ -152,7 +152,7 @@ const PesquisarEscolas = () => {
           <Search className="w-6 h-6 text-primary-500" />
           Pesquisar Escolas
         </h2>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Encontre instituicoes de ensino na provincia do Huambo</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Encontre instituicoes de ensino em Angola</p>
       </div>
 
       {/* Search and Filters */}

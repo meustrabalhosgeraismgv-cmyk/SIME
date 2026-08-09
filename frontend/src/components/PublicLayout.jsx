@@ -91,7 +91,7 @@ export default function PublicLayout() {
                 <LogoImage size="small" />
               </div>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Sistema Integrado de Monitorização Escolar da província do Huambo. 
+                Sistema Integrado de Monitorização Escolar de Angola. 
                 Aceda a informações sobre instituições de ensino, vagas e calendário lectivo.
               </p>
             </div>
@@ -100,14 +100,6 @@ export default function PublicLayout() {
             <div className="space-y-4">
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">Institucional</h4>
               <nav className="flex flex-col gap-3">
-                <a href="https://huambo.gov.ao/" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-3 text-sm text-gray-400 hover:text-white transition-colors group">
-                  <img src="/logos/governo-huambo.png" alt="GPH" className="w-8 h-8 rounded bg-white p-0.5" />
-                  <div>
-                    <p className="font-medium group-hover:text-white">Governo Provincial do Huambo</p>
-                    <p className="text-xs text-gray-500">huambo.gov.ao</p>
-                  </div>
-                </a>
                 <a href="https://med.gov.ao/" target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-3 text-sm text-gray-400 hover:text-white transition-colors group">
                   <img src="/logos/med.png" alt="MED" className="w-8 h-8 rounded bg-white p-0.5" />
@@ -132,11 +124,11 @@ export default function PublicLayout() {
               </nav>
             </div>
 
-            {/* Contactos SIME */}
+            {/* Contactos */}
             <div className="space-y-4">
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">Contactos</h4>
               <div className="space-y-2 text-sm text-gray-400">
-                <p>Huambo, Angola</p>
+                <p>Luanda, Angola</p>
                 <a href="mailto:info@sime.ao" className="block hover:text-white transition-colors">info@sime.ao</a>
                 <a href="tel:+244923000000" className="block hover:text-white transition-colors">+244 923 000 000</a>
               </div>
@@ -165,13 +157,9 @@ export default function PublicLayout() {
 
           <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-gray-500">
-              &copy; {new Date().getFullYear()} SIME Huambo. Todos os direitos reservados.
+              &copy; {new Date().getFullYear()} Educa Mais+ Angola. Todos os direitos reservados.
             </p>
             <div className="flex items-center gap-4">
-              <a href="https://huambo.gov.ao/" target="_blank" rel="noopener noreferrer"
-                className="text-gray-500 hover:text-white transition-colors" title="Governo Provincial do Huambo">
-                <img src="/logos/governo-huambo.png" alt="GPH" className="w-6 h-6 rounded bg-white p-0.5 opacity-50 hover:opacity-100" />
-              </a>
               <a href="https://med.gov.ao/" target="_blank" rel="noopener noreferrer"
                 className="text-gray-500 hover:text-white transition-colors" title="Ministério da Educação">
                 <img src="/logos/med.png" alt="MED" className="w-6 h-6 rounded bg-white p-0.5 opacity-50 hover:opacity-100" />

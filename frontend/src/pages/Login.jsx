@@ -55,7 +55,7 @@ const Login = () => {
               <img src="/Logotipo.png" alt="SIME" className="h-16 w-auto" />
             </div>
             <h1 className="text-5xl font-extrabold tracking-tight mb-3">
-              SIME
+              Educa Mais+ Angola
             </h1>
             <p className="text-xl text-white/90 font-light">
               Sistema Integrado de Monitorização Escolar
@@ -68,7 +68,7 @@ const Login = () => {
                 <MapPin className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Província do Huambo</h3>
+                <h3 className="font-semibold text-lg">República de Angola</h3>
                 <p className="text-white/70 text-sm">Toda a informação escolar num só lugar</p>
               </div>
             </div>
@@ -96,7 +96,7 @@ const Login = () => {
           
           <div className="mt-16 pt-8 border-t border-white/20">
             <p className="text-white/60 text-sm">
-              © 2026 SIME — Governo Provincial do Huambo
+              © 2026 Educa Mais+ Angola — Governo de Angola
             </p>
           </div>
         </div>

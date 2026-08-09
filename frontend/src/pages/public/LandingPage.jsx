@@ -81,7 +81,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20 md:py-32 relative z-10 text-center">
           <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
             <Building2 className="w-4 h-4 text-white" />
-            <span className="text-sm text-white/90 font-medium">Província do Huambo — Angola</span>
+            <span className="text-sm text-white/90 font-medium">República de Angola</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-6">
             Toda a informação escolar<br />
@@ -135,8 +135,8 @@ export default function LandingPage() {
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold text-[#0061a4]">Como funciona o SIME</h2>
-            <p className="text-gray-500 mt-3 max-w-xl mx-auto">Uma plataforma completa para o sistema educacional da província do Huambo</p>
+            <h2 className="text-3xl font-bold text-[#0061a4]">Como funciona o Educa Mais+ Angola</h2>
+            <p className="text-gray-500 mt-3 max-w-xl mx-auto">Uma plataforma completa para o sistema educacional de Angola</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f, i) => (
@@ -161,7 +161,7 @@ export default function LandingPage() {
             <div className="flex items-center justify-between mb-10">
               <div>
                 <h2 className="text-3xl font-bold text-[#0061a4]">Escolas em destaque</h2>
-                <p className="text-gray-500 mt-2">Instituições de ensino da província do Huambo</p>
+                <p className="text-gray-500 mt-2">Instituições de ensino de Angola</p>
               </div>
               <Link to="/escolas" className="hidden md:flex items-center gap-2 text-[#0061a4] font-semibold hover:underline">
                 Ver todas <ArrowRight className="w-4 h-4" />
@@ -271,7 +271,7 @@ export default function LandingPage() {
             <div className="md:col-span-2">
               <Logo size="small" className="mb-4" />
               <p className="text-gray-500 text-sm leading-relaxed max-w-md">
-                Plataforma integrada de informação educacional da Província do Huambo, Angola.
+                Plataforma integrada de informação educacional de Angola.
                 Digitalizando, organizando e centralizando toda a informação escolar.
               </p>
             </div>
@@ -289,12 +289,12 @@ export default function LandingPage() {
               <div className="space-y-2.5 text-sm text-gray-500">
                 <p className="flex items-center gap-2"><Phone className="w-4 h-4" /> +244 241 234 567</p>
                 <p className="flex items-center gap-2"><Mail className="w-4 h-4" /> info@sime.gov.ao</p>
-                <p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Huambo, Angola</p>
+                <p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Luanda, Angola</p>
               </div>
             </div>
           </div>
           <div className="border-t border-gray-200 mt-10 pt-8 flex flex-col md:flex-row items-center justify-between text-sm text-gray-400">
-            <p>© 2026 SIME — Governo Provincial do Huambo</p>
+            <p>© 2026 Educa Mais+ Angola — Governo de Angola</p>
             <p className="mt-2 md:mt-0">Todos os direitos reservados</p>
           </div>
         </div>

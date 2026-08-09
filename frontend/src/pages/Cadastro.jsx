@@ -126,7 +126,7 @@ const Cadastro = () => {
               Criar Conta
             </h1>
             <p className="text-xl text-white/90 font-light">
-              Junte-se à plataforma educacional do Huambo
+              Junte-se à plataforma educacional de Angola
             </p>
           </div>
           
@@ -154,7 +154,7 @@ const Cadastro = () => {
           
           <div className="mt-16 pt-8 border-t border-white/20">
             <p className="text-white/60 text-sm">
-              © 2026 SIME — Governo Provincial do Huambo
+              © 2026 Educa Mais+ Angola — Governo de Angola
             </p>
           </div>
         </div>

@@ -3,8 +3,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, MapPin, Navigation, Layers, X, ChevronDown, Car, Footprints, Bike, Clock, Route } from 'lucide-react';
 
-const HUAMBO_CENTER = [-12.75, 15.75];
-const HUAMBO_ZOOM = 10;
+const ANGOLA_CENTER = [-12.3, 17.5];
+const ANGOLA_ZOOM = 6;
 
 const VAGAS_COLORS = {
   disponivel: '#4CAF50',
@@ -41,14 +41,25 @@ function getMarkerIcon(status) {
   });
 }
 
-const MUNICIPIOS_COORDS = {
+const PROVINCIAS_COORDS = {
+  'Bengo': [-8.7833, 13.6500],
+  'Benguela': [-12.5783, 13.4072],
+  'Bié': [-12.3667, 17.3500],
+  'Cabinda': [-5.5500, 12.2000],
+  'Cuando Cubango': [-14.7667, 17.6833],
+  'Cuanza Norte': [-9.0833, 15.2500],
+  'Cuanza Sul': [-10.8667, 14.8833],
+  'Cunene': [-16.7667, 15.9667],
   'Huambo': [-12.7642, 15.7367],
-  'Caála': [-12.8500, 15.5600],
-  'Bailundo': [-12.7833, 15.9333],
-  'Ekunha': [-12.9167, 15.6333],
-  'Longonjo': [-12.9000, 15.2500],
-  'Londuimbali': [-12.5833, 15.4833],
-  'Mungo': [-12.6667, 15.3833],
+  'Huíla': [-14.9167, 13.5000],
+  'Luanda': [-8.8368, 13.2343],
+  'Lunda Norte': [-8.2833, 19.3667],
+  'Lunda Sul': [-10.2833, 20.7500],
+  'Malanje': [-9.5400, 16.3411],
+  'Moxico': [-13.4017, 21.3167],
+  'Namibe': [-15.1961, 12.1522],
+  'Uíge': [-7.6167, 15.0500],
+  'Zaire': [-6.5667, 13.2833],
 };
 
 const TILE_LAYERS = {
@@ -64,7 +75,7 @@ const TILE_LAYERS = {
   },
 };
 
-export default function MapaHuambo({ escolas = [], compact = false, onSelectEscola }) {
+export default function MapaAngola({ escolas = [], compact = false, onSelectEscola }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const layerRef = useRef(null);
@@ -86,7 +97,7 @@ export default function MapaHuambo({ escolas = [], compact = false, onSelectEsco
     if (escola.latitude && escola.longitude) {
       return [parseFloat(escola.latitude), parseFloat(escola.longitude)];
     }
-    const fallback = MUNICIPIOS_COORDS[escola.municipio_nome];
+    const fallback = PROVINCIAS_COORDS[escola.municipio_nome];
     return fallback || null;
   }, []);
 
@@ -236,8 +247,8 @@ export default function MapaHuambo({ escolas = [], compact = false, onSelectEsco
     if (mapInstance.current) return;
 
     const map = L.map(mapRef.current, {
-      center: HUAMBO_CENTER,
-      zoom: HUAMBO_ZOOM,
+      center: ANGOLA_CENTER,
+      zoom: ANGOLA_ZOOM,
       zoomControl: false,
       scrollWheelZoom: !compact,
       dragging: !compact,
@@ -283,7 +294,7 @@ export default function MapaHuambo({ escolas = [], compact = false, onSelectEsco
     markersRef.current.forEach(m => map.removeLayer(m));
     markersRef.current = [];
 
-    Object.entries(MUNICIPIOS_COORDS).forEach(([nome, coords]) => {
+    Object.entries(PROVINCIAS_COORDS).forEach(([nome, coords]) => {
       if (!compact) {
         const label = L.divIcon({
           className: '',
@@ -303,7 +314,7 @@ export default function MapaHuambo({ escolas = [], compact = false, onSelectEsco
         lat = escola.latitude;
         lng = escola.longitude;
       } else {
-        const municipioCoords = MUNICIPIOS_COORDS[escola.municipio_nome];
+        const municipioCoords = PROVINCIAS_COORDS[escola.municipio_nome];
         if (!municipioCoords) return;
         lat = municipioCoords[0] + (Math.random() - 0.5) * 0.01;
         lng = municipioCoords[1] + (Math.random() - 0.5) * 0.01;

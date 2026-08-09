@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import StatsCard from '../components/StatsCard';
 import Loading from '../components/Loading';
-import MapaHuambo from '../components/MapaHuambo';
+import MapaAngola from '../components/MapaAngola';
 import { dashboardService, instituicaoService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -60,11 +60,11 @@ const Dashboard = () => {
   ];
 
   const escolasBarData = [
-    { name: 'ES Huambo', ocupadas: 560, disponiveis: 240 },
+    { name: 'ES Luanda', ocupadas: 560, disponiveis: 240 },
     { name: 'EP Centro', ocupadas: 420, disponiveis: 180 },
-    { name: 'IT Huambo', ocupadas: 280, disponiveis: 120 },
-    { name: 'ES Lombardas', ocupadas: 490, disponiveis: 210 },
-    { name: 'EP Macaca', ocupadas: 350, disponiveis: 150 }
+    { name: 'IT Benguela', ocupadas: 280, disponiveis: 120 },
+    { name: 'ES Huambo', ocupadas: 490, disponiveis: 210 },
+    { name: 'EP Lubango', ocupadas: 350, disponiveis: 150 }
   ];
 
   const calendarEvents = [
@@ -180,7 +180,7 @@ const Dashboard = () => {
           </div>
         </div>
         <div style={{ height: '500px' }} className="relative">
-          <MapaHuambo escolas={escolas} onSelectEscola={(e) => navigate(`/escolas/${e.id}`)} />
+          <MapaAngola escolas={escolas} onSelectEscola={(e) => navigate(`/escolas/${e.id}`)} />
         </div>
       </div>
 

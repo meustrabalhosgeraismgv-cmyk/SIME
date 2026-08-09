@@ -163,7 +163,7 @@ export default function CalendarioPage() {
 
         <div className="relative z-10 max-w-4xl mx-auto space-y-4">
           <span className="inline-block rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium text-white/90 backdrop-blur-sm">
-            Sector Educativo do Huambo
+            Sector Educativo de Angola
           </span>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">
             Calendário Escolar{' '}

@@ -77,7 +77,7 @@ export default function Sospage() {
           </h1>
           <p className="text-lg text-white/90 max-w-2xl mx-auto">
             Um canal seguro e confidencial para denunciar violações, assédio, bullying,
-            cobranças indevidas ou qualquer situação de risco nas escolas do Huambo.
+            cobranças indevidas ou qualquer situação de risco nas escolas de Angola.
             Pode comunicar de forma anónima.
           </p>
         </div>

@@ -1,6 +1,6 @@
 # SIME - Sistema Integrado de Monitorização Escolar
 
-Sistema completo para gestão e monitorização do ecossistema escolar da província do Huambo, Angola.
+Sistema completo para gestão e monitorização do ecossistema escolar de Angola (Educa Mais+).
 
 ## Funcionalidades
 
@@ -237,4 +237,4 @@ O design segue o padrão definido no DESIGN.md:
 
 ## Licença
 
-Desenvolvido para o projeto SIME - Sistema Integrado de Monitorização Escolar, Província do Huambo.
+Desenvolvido para o projeto SIME (Educa Mais+) - Sistema Integrado de Monitorização Escolar, República de Angola.

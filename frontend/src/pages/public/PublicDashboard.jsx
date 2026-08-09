@@ -6,7 +6,7 @@ import {
   Info, Settings, Building2, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { instituicaoService } from '../../services/api';
-import MapaHuambo from '../../components/MapaHuambo';
+import MapaAngola from '../../components/MapaAngola';
 
 const HERO_IMAGES = [
   '/imagens-escolas/isced-1.jpg',
@@ -103,12 +103,12 @@ export default function PublicDashboard() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#0061a4]/85 via-[#0061a4]/75 to-[#00497d]/90" />
 
         <div className="relative z-10 max-w-3xl w-full space-y-4">
-          <span className="text-sm font-semibold text-[#d1e4ff] uppercase tracking-widest">Província do Huambo</span>
+          <span className="text-sm font-semibold text-[#d1e4ff] uppercase tracking-widest">República de Angola</span>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">
-            Bem-vindo ao SIME
+            Bem-vindo ao Educa Mais+ Angola
           </h1>
           <p className="text-lg text-white/90 max-w-2xl mx-auto leading-relaxed">
-            O <strong>Sistema Integrado de Monitorização Escolar</strong> é a plataforma oficial da província do Huambo para consulta de instituições de ensino, vagas disponíveis, calendário lectivo e processo de inscrição online.
+            O <strong>Sistema Integrado de Monitorização Escolar</strong> é a plataforma oficial de Angola para consulta de instituições de ensino, vagas disponíveis, calendário lectivo e processo de inscrição online.
           </p>
           
           {/* Search Bar */}
@@ -152,7 +152,7 @@ export default function PublicDashboard() {
             <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col h-[500px]">
               <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Rede Escolar Provincial</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">Rede Escolar Nacional</h2>
                   <p className="text-sm text-gray-500">Mapa de distribuição e estado de ocupação</p>
                 </div>
                 <div className="flex gap-4">
@@ -168,7 +168,7 @@ export default function PublicDashboard() {
                 </div>
               </div>
               <div className="flex-1 relative">
-                <MapaHuambo escolas={escolas} onSelectEscola={(e) => navigate(`/escolas/${e.id}`)} />
+                <MapaAngola escolas={escolas} onSelectEscola={(e) => navigate(`/escolas/${e.id}`)} />
               </div>
             </div>
           </div>

@@ -63,7 +63,7 @@ const Relatorios = () => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Relatório de Síntese - SIME Huambo</title>
+  <title>Relatório de Síntese - Educa Mais+ Angola</title>
   <style>
     body { font-family: Arial, sans-serif; color: #111827; padding: 32px; }
     h1 { font-size: 22px; margin: 0 0 4px; color: #0061a4; }
@@ -85,7 +85,7 @@ const Relatorios = () => {
   <div class="no-print" style="text-align:right;margin-bottom:16px">
     <button onclick="window.print()" style="background:#0061a4;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px">Imprimir / Guardar PDF</button>
   </div>
-  <h1>Relatório de Síntese - SIME Huambo</h1>
+  <h1>Relatório de Síntese - Educa Mais+ Angola</h1>
   <p class="sub">${s.periodo.label} • Gerado em ${new Date(s.gerado_em).toLocaleString('pt-PT')}</p>
 
   <div class="grid">
@@ -134,7 +134,7 @@ const Relatorios = () => {
     </table>
   </div>` : ''}
 
-  <div class="footer">Sistema Integrado de Monitorização Escolar • Província do Huambo • © ${new Date().getFullYear()}</div>
+  <div class="footer">Sistema Integrado de Monitorização Escolar • República de Angola • © ${new Date().getFullYear()}</div>
   <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
 </body>
 </html>`;
@@ -149,7 +149,7 @@ const Relatorios = () => {
     const html = `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8"><title>Relatório de Ocupação - SIME Huambo</title>
+  <meta charset="utf-8"><title>Relatório de Ocupação - Educa Mais+ Angola</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 32px; }
     h1 { font-size: 22px; color: #0061a4; margin-bottom: 4px; }
@@ -168,7 +168,7 @@ const Relatorios = () => {
     <tr><th>Instituição</th><th>Tipo</th><th>Vagas Totais</th><th>Vagas Ocupadas</th><th>Vagas Disponíveis</th><th>Ocupação</th></tr>
     ${rows}
   </table>
-  <div class="footer">Sistema Integrado de Monitorização Escolar • Província do Huambo • © ${new Date().getFullYear()}</div>
+  <div class="footer">Sistema Integrado de Monitorização Escolar • República de Angola • © ${new Date().getFullYear()}</div>
   <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
 </body>
 </html>`;

@@ -10,8 +10,8 @@ export default function TermosDeUso() {
             <section>
               <h2 className="text-xl font-semibold text-gray-800 mb-3">1. Aceitação dos Termos</h2>
               <p className="text-gray-600 leading-relaxed">
-                Ao aceder e utilizar o Sistema Integrado de Monitorização Escolar (SIME) da província do Huambo, 
-                o utilizador concorda com os presentes Termos de Uso. Caso não concorde, deve abstenhar-se de utilizar 
+                Ao aceder e utilizar o Sistema Integrado de Monitorização Escolar (SIME) da República de Angola, 
+                o utilizador concorda com os presentes Termos de Uso. Caso não concorde, deve abster-se de utilizar 
                 o sistema.
               </p>
             </section>
@@ -19,9 +19,9 @@ export default function TermosDeUso() {
             <section>
               <h2 className="text-xl font-semibold text-gray-800 mb-3">2. Objectivo do Sistema</h2>
               <p className="text-gray-600 leading-relaxed">
-                O SIME destina-se a disponibilizar informações sobre instituições de ensino na província do Huambo, 
+                O SIME destina-se a disponibilizar informações sobre instituições de ensino em Angola, 
                 incluindo dados sobre vagas, calendário lectivo, notícias e processo de inscrição. O sistema é 
-                gerido pelo Governo Provincial do Huambo em cooperação com o Ministério da Educação.
+                gerido pelo Governo de Angola em cooperação com o Ministério da Educação.
               </p>
             </section>
 
@@ -48,7 +48,7 @@ export default function TermosDeUso() {
               <h2 className="text-xl font-semibold text-gray-800 mb-3">5. Propriedade Intelectual</h2>
               <p className="text-gray-600 leading-relaxed">
                 Todo o conteúdo disponibilizado no SIME, incluindo textos, gráficos, logótipos e código-fonte, 
-                é propriedade do Governo Provincial do Huambo ou dos seus parceiros, sendo protegido pelas leis 
+                é propriedade do Governo de Angola ou dos seus parceiros, sendo protegido pelas leis 
                 de propriedade intelectual de Angola.
               </p>
             </section>
@@ -57,7 +57,7 @@ export default function TermosDeUso() {
               <h2 className="text-xl font-semibold text-gray-800 mb-3">6. Isenção de Responsabilidade</h2>
               <p className="text-gray-600 leading-relaxed">
                 O SIME é fornecido "tal como está", sem garantias de qualquer natureza. 
-                O Governo Provincial do Huambo não se responsabiliza por danos decorrentes da utilização 
+                O Governo de Angola não se responsabiliza por danos decorrentes da utilização 
                 do sistema, incluindo, mas não se limitando a, perda de dados ou interrupções de serviço.
               </p>
             </section>
@@ -75,8 +75,7 @@ export default function TermosDeUso() {
               <h2 className="text-xl font-semibold text-gray-800 mb-3">8. Contactos</h2>
               <p className="text-gray-600 leading-relaxed">
                 Para questões relativas a estes Termos de Uso, entre em contacto com a equipa do SIME 
-                através do email <span className="font-medium">info@sime.ao</span> ou visite os gabinetes 
-                do Governo Provincial do Huambo.
+                através do email <span className="font-medium">info@sime.ao</span>.
               </p>
             </section>
           </div>
