@@ -143,7 +143,10 @@ const getInstituicaoById = async (req, res) => {
 const createInstituicao = async (req, res) => {
   try {
     const db = getDB();
-    const { nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, latitude, longitude } = req.body;
+    const {
+      nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, latitude, longitude,
+      coordenador_pais_nome, coordenador_pais_telefone, coordenador_pais_email
+    } = req.body;
 
     const doc = {
       nome,
@@ -156,6 +159,9 @@ const createInstituicao = async (req, res) => {
       vagas_disponiveis: vagas_totais,
       latitude: latitude || null,
       longitude: longitude || null,
+      coordenador_pais_nome: coordenador_pais_nome || '',
+      coordenador_pais_telefone: coordenador_pais_telefone || '',
+      coordenador_pais_email: coordenador_pais_email || '',
       created_at: new Date(),
       updated_at: new Date()
     };
@@ -172,7 +178,11 @@ const updateInstituicao = async (req, res) => {
   try {
     const db = getDB();
     const { id } = req.params;
-    const { nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, vagas_disponiveis, status, latitude, longitude } = req.body;
+    const {
+      nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, vagas_disponiveis,
+      status, latitude, longitude,
+      coordenador_pais_nome, coordenador_pais_telefone, coordenador_pais_email
+    } = req.body;
 
     const update = {
       $set: {
@@ -187,6 +197,9 @@ const updateInstituicao = async (req, res) => {
         status,
         latitude: latitude || null,
         longitude: longitude || null,
+        coordenador_pais_nome: coordenador_pais_nome || '',
+        coordenador_pais_telefone: coordenador_pais_telefone || '',
+        coordenador_pais_email: coordenador_pais_email || '',
         updated_at: new Date()
       }
     };

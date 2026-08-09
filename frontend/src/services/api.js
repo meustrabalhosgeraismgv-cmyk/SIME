@@ -167,4 +167,55 @@ export const adminService = {
   deleteUser: (id) => api.delete(`/admin/users/${id}`),
 };
 
+export const relatorioService = {
+  getSintese: (params) => api.get('/relatorios/sintese', { params }),
+};
+
+export const documentoService = {
+  getAll: (params) => api.get('/documentos', { params }),
+  getCategorias: () => api.get('/documentos/categorias'),
+  getById: (id) => api.get(`/documentos/${id}`),
+  create: (data) => api.post('/documentos', data),
+  update: (id, data) => api.put(`/documentos/${id}`, data),
+  delete: (id) => api.delete(`/documentos/${id}`),
+};
+
+export const smsService = {
+  getAll: (params) => api.get('/sms', { params }),
+  getStats: () => api.get('/sms/stats'),
+  getDestinatarios: () => api.get('/sms/destinatarios'),
+  enviar: (data) => api.post('/sms/enviar', data),
+  emMassa: (data) => api.post('/sms/em-massa', data),
+};
+
+export const rhService = {
+  getAll: (params) => api.get('/rh', { params }),
+  getById: (id) => api.get(`/rh/${id}`),
+  getStats: () => api.get('/rh/stats'),
+  create: (data) => api.post('/rh', data),
+  update: (id, data) => api.put(`/rh/${id}`, data),
+  delete: (id) => api.delete(`/rh/${id}`),
+  getAvaliacoes: (params) => api.get('/rh/avaliacoes', { params }),
+  createAvaliacao: (data) => api.post('/rh/avaliacoes', data),
+  updateAvaliacao: (id, data) => api.put(`/rh/avaliacoes/${id}`, data),
+  deleteAvaliacao: (id) => api.delete(`/rh/avaliacoes/${id}`),
+};
+
+export const classificacaoService = {
+  getAll: (params) => api.get('/classificacoes', { params }),
+  getHistorico: (alunoId) => api.get(`/classificacoes/historico/${alunoId}`),
+  create: (data) => api.post('/classificacoes', data),
+  update: (id, data) => api.put(`/classificacoes/${id}`, data),
+  delete: (id) => api.delete(`/classificacoes/${id}`),
+};
+
+export const denunciaService = {
+  getAll: (params) => api.get('/denuncias', { params }),
+  getById: (id) => api.get(`/denuncias/${id}`),
+  getStats: () => api.get('/denuncias/stats'),
+  create: (data) => api.post('/denuncias', data),
+  update: (id, data) => api.put(`/denuncias/${id}`, data),
+  delete: (id) => api.delete(`/denuncias/${id}`),
+};
+
 export default api;

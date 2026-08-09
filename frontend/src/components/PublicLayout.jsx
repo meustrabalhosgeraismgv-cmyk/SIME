@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, Link } from 'react-router-dom';
-import { Menu, X, LogIn, UserPlus } from 'lucide-react';
+import { Menu, X, LogIn, UserPlus, Siren } from 'lucide-react';
 import { LogoImage } from './Logo';
 
 const navLinks = [
@@ -8,6 +8,7 @@ const navLinks = [
   { to: '/escolas', label: 'Escolas' },
   { to: '/noticias', label: 'Notícias' },
   { to: '/calendario', label: 'Calendário' },
+  { to: '/sos', label: 'SOS' },
 ];
 
 const linkClass = ({ isActive }) =>

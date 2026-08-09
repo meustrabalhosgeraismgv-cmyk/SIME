@@ -17,6 +17,7 @@ const GerirInstituicao = () => {
   const [form, setForm] = useState({
     nome: '', endereco: '', telefone: '', email: '', responsavel: '',
     latitude: '', longitude: '', lema: '', descricao: '',
+    coordenador_pais_nome: '', coordenador_pais_telefone: '', coordenador_pais_email: '',
     taxa_inscricao: 0, taxa_matricula: 0, aceita_inscricao_online: 0, aceita_inscricao_presencial: 1,
     imagem_url: '', logotipo_url: ''
   });
@@ -42,6 +43,9 @@ const GerirInstituicao = () => {
         email: instRes.email || '', responsavel: instRes.responsavel || '',
         latitude: instRes.latitude || '', longitude: instRes.longitude || '',
         lema: instRes.lema || '', descricao: instRes.descricao || '',
+        coordenador_pais_nome: instRes.coordenador_pais_nome || '',
+        coordenador_pais_telefone: instRes.coordenador_pais_telefone || '',
+        coordenador_pais_email: instRes.coordenador_pais_email || '',
         taxa_inscricao: instRes.taxa_inscricao || 0, taxa_matricula: instRes.taxa_matricula || 0,
         aceita_inscricao_online: instRes.aceita_inscricao_online || 0,
         aceita_inscricao_presencial: instRes.aceita_inscricao_presencial ?? 1,
@@ -176,6 +180,18 @@ const GerirInstituicao = () => {
                 <div className="md:col-span-2">
                   <label className={`block text-sm font-medium ${subtext} mb-1`}>Descrição</label>
                   <textarea rows={3} value={form.descricao} onChange={e => setForm({...form, descricao: e.target.value})} className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none resize-none`} />
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium ${subtext} mb-1`}>Coordenador de Pais (Nome)</label>
+                  <input type="text" value={form.coordenador_pais_nome} onChange={e => setForm({...form, coordenador_pais_nome: e.target.value})} className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`} placeholder="Nome do coordenador de pais" />
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium ${subtext} mb-1`}>Coordenador de Pais (Telefone)</label>
+                  <input type="text" value={form.coordenador_pais_telefone} onChange={e => setForm({...form, coordenador_pais_telefone: e.target.value})} className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`} placeholder="Telefone do coordenador" />
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium ${subtext} mb-1`}>Coordenador de Pais (Email)</label>
+                  <input type="email" value={form.coordenador_pais_email} onChange={e => setForm({...form, coordenador_pais_email: e.target.value})} className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`} placeholder="Email do coordenador" />
                 </div>
               </div>
             </div>

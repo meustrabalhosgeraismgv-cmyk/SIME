@@ -38,7 +38,7 @@ export default function Logo({ size = 'default', showSubtitle = false, className
           style={{ fontSize: s.textSize, fontWeight: 800, lineHeight: 1 }}
           className="text-[#2196F3] tracking-tight"
         >
-          SIME
+          Educa Mais<span className="text-[#F44336]">+</span> Angola
         </span>
         {showSubtitle && (
           <span
@@ -128,7 +128,7 @@ export function LogoWhite({ size = 'default', className = '' }) {
         style={{ fontSize: s.textSize, fontWeight: 800, lineHeight: 1 }}
         className="text-white tracking-tight"
       >
-        SIME
+        Educa Mais<span className="text-[#F44336]">+</span> Angola
       </span>
     </div>
   );

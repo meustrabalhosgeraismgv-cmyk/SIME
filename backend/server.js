@@ -69,6 +69,12 @@ async function start() {
   app.use('/api/informacoes', require('./routes/informacoes'));
   app.use('/api/taxa-reserva', require('./routes/taxaReserva'));
   app.use('/api/chat', require('./routes/chat'));
+  app.use('/api/relatorios', require('./routes/relatorios'));
+  app.use('/api/documentos', require('./routes/documentos'));
+  app.use('/api/sms', require('./routes/sms'));
+  app.use('/api/rh', require('./routes/rh'));
+  app.use('/api/classificacoes', require('./routes/classificacoes'));
+  app.use('/api/denuncias', require('./routes/denuncias'));
 
   app.get('/api/admin/migrate-coords', async (req, res) => {
     const { getDB } = require('./config/mongodb');

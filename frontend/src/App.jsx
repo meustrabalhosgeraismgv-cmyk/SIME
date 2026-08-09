@@ -12,6 +12,7 @@ import CalendarioPage from './pages/public/CalendarioPage';
 import PublicDashboard from './pages/public/PublicDashboard';
 import TermosDeUso from './pages/public/TermosDeUso';
 import Acessibilidade from './pages/public/Acessibilidade';
+import Sospage from './pages/public/Sospage';
 
 // Auth
 import Login from './pages/Login';
@@ -39,6 +40,10 @@ import Aprovacoes from './pages/Aprovacoes';
 import Utilizadores from './pages/Utilizadores';
 import Solicitacoes from './pages/Solicitacoes';
 import Chat from './pages/Chat';
+import FicheirosEscolares from './pages/FicheirosEscolares';
+import Sms from './pages/Sms';
+import RecursosHumanos from './pages/RecursosHumanos';
+import Denuncias from './pages/Denuncias';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -69,6 +74,7 @@ const AppRoutes = () => {
         <Route path="calendario" element={<CalendarioPage />} />
         <Route path="termos-de-uso" element={<TermosDeUso />} />
         <Route path="acessibilidade" element={<Acessibilidade />} />
+        <Route path="sos" element={<Sospage />} />
       </Route>
 
       {/* LOGIN */}
@@ -105,6 +111,10 @@ const AppRoutes = () => {
         <Route path="chat" element={<Chat />} />
         <Route path="chat/:conversaId" element={<Chat />} />
         <Route path="gerir-perfil" element={<GerirPerfil />} />
+        <Route path="ficheiros-escolares" element={<FicheirosEscolares />} />
+        <Route path="sms" element={<Sms />} />
+        <Route path="recursos-humanos" element={<RecursosHumanos />} />
+        <Route path="denuncias" element={<Denuncias />} />
       </Route>
       
       <Route path="*" element={<Navigate to="/" replace />} />

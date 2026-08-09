@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, ShieldCheck, History } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import StatusChip from '../components/StatusChip';
@@ -26,7 +26,17 @@ const Alunos = () => {
     numero_estudante: '',
     encarregado_id: '',
     instituicao_id: '',
-    estado: 'ativo'
+    estado: 'ativo',
+    bi: '',
+    telefone: '',
+    email: '',
+    morada: '',
+    grupo_sanguineo: '',
+    religiao: '',
+    contacto_emergencia_nome: '',
+    contacto_emergencia_telefone: '',
+    controlo_parental_activo: false,
+    controlo_parental_observacoes: ''
   });
 
   useEffect(() => {
@@ -59,11 +69,35 @@ const Alunos = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        nome_completo: formData.nome_completo,
+        data_nascimento: formData.data_nascimento,
+        sexo: formData.sexo,
+        naturalidade: formData.naturalidade,
+        numero_estudante: formData.numero_estudante,
+        encarregado_id: formData.encarregado_id,
+        instituicao_id: formData.instituicao_id,
+        estado: formData.estado,
+        bi: formData.bi,
+        telefone: formData.telefone,
+        email: formData.email,
+        morada: formData.morada,
+        grupo_sanguineo: formData.grupo_sanguineo,
+        religiao: formData.religiao,
+        contacto_emergencia_nome: formData.contacto_emergencia_nome,
+        contacto_emergencia_telefone: formData.contacto_emergencia_telefone,
+        controlo_parental: {
+          activo: formData.controlo_parental_activo,
+          observacoes: formData.controlo_parental_observacoes,
+          permissoes: formData.controlo_parental_activo ? { saida_escola: true, receber_visitas: true } : {},
+          contactos_autorizados: formData.controlo_parental_activo ? [formData.contacto_emergencia_telefone].filter(Boolean) : []
+        }
+      };
       if (editingId) {
-        await alunoService.update(editingId, formData);
+        await alunoService.update(editingId, payload);
         setAlert({ type: 'success', message: 'Aluno atualizado com sucesso!' });
       } else {
-        await alunoService.create(formData);
+        await alunoService.create(payload);
         setAlert({ type: 'success', message: 'Aluno registado com sucesso!' });
       }
       setShowModal(false);
@@ -75,6 +109,7 @@ const Alunos = () => {
   };
 
   const handleEdit = (aluno) => {
+    const cp = aluno.controlo_parental || {};
     setFormData({
       nome_completo: aluno.nome_completo,
       data_nascimento: aluno.data_nascimento,
@@ -83,7 +118,17 @@ const Alunos = () => {
       numero_estudante: aluno.numero_estudante,
       encarregado_id: aluno.encarregado_id || '',
       instituicao_id: aluno.instituicao_id || '',
-      estado: aluno.estado
+      estado: aluno.estado,
+      bi: aluno.bi || '',
+      telefone: aluno.telefone || '',
+      email: aluno.email || '',
+      morada: aluno.morada || '',
+      grupo_sanguineo: aluno.grupo_sanguineo || '',
+      religiao: aluno.religiao || '',
+      contacto_emergencia_nome: aluno.contacto_emergencia_nome || '',
+      contacto_emergencia_telefone: aluno.contacto_emergencia_telefone || '',
+      controlo_parental_activo: !!cp.activo,
+      controlo_parental_observacoes: cp.observacoes || ''
     });
     setEditingId(aluno.id);
     setShowModal(true);
@@ -119,7 +164,17 @@ const Alunos = () => {
       numero_estudante: '',
       encarregado_id: '',
       instituicao_id: '',
-      estado: 'ativo'
+      estado: 'ativo',
+      bi: '',
+      telefone: '',
+      email: '',
+      morada: '',
+      grupo_sanguineo: '',
+      religiao: '',
+      contacto_emergencia_nome: '',
+      contacto_emergencia_telefone: '',
+      controlo_parental_activo: false,
+      controlo_parental_observacoes: ''
     });
     setEditingId(null);
   };
@@ -337,6 +392,140 @@ const Alunos = () => {
                 placeholder="ID do encarregado"
               />
             </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                BI / Documento
+              </label>
+              <input
+                type="text"
+                value={formData.bi}
+                onChange={(e) => setFormData({ ...formData, bi: e.target.value })}
+                className="input-field"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Telefone
+              </label>
+              <input
+                type="text"
+                value={formData.telefone}
+                onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                className="input-field"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="input-field"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Morada
+              </label>
+              <input
+                type="text"
+                value={formData.morada}
+                onChange={(e) => setFormData({ ...formData, morada: e.target.value })}
+                className="input-field"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Grupo Sanguíneo
+              </label>
+              <select
+                value={formData.grupo_sanguineo}
+                onChange={(e) => setFormData({ ...formData, grupo_sanguineo: e.target.value })}
+                className="input-field"
+              >
+                <option value="">Selecione...</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Religião
+              </label>
+              <input
+                type="text"
+                value={formData.religiao}
+                onChange={(e) => setFormData({ ...formData, religiao: e.target.value })}
+                className="input-field"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Contacto de Emergência (Nome)
+              </label>
+              <input
+                type="text"
+                value={formData.contacto_emergencia_nome}
+                onChange={(e) => setFormData({ ...formData, contacto_emergencia_nome: e.target.value })}
+                className="input-field"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Contacto de Emergência (Telefone)
+              </label>
+              <input
+                type="text"
+                value={formData.contacto_emergencia_telefone}
+                onChange={(e) => setFormData({ ...formData, contacto_emergencia_telefone: e.target.value })}
+                className="input-field"
+              />
+            </div>
+
+            <div className="md:col-span-2 p-4 bg-primary-50 dark:bg-navy-800 rounded-2xl border border-primary-200 dark:border-navy-700">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.controlo_parental_activo}
+                  onChange={(e) => setFormData({ ...formData, controlo_parental_activo: e.target.checked })}
+                  className="w-4 h-4 accent-primary-500"
+                />
+                <span className="flex items-center gap-2 font-medium text-gray-800 dark:text-white">
+                  <ShieldCheck className="w-4 h-4 text-primary-500" />
+                  Controlo Parental Ativo
+                </span>
+              </label>
+              {formData.controlo_parental_activo && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Observações / Condições
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formData.controlo_parental_observacoes}
+                    onChange={(e) => setFormData({ ...formData, controlo_parental_observacoes: e.target.value })}
+                    className="input-field resize-none"
+                    placeholder="Ex.: Autorizado a sair apenas com o encarregado..."
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -391,11 +580,39 @@ const Alunos = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">Instituição</p>
                 <p className="font-medium text-gray-900 dark:text-white">{selectedAluno.instituicao_nome}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Encarregado</p>
-                <p className="font-medium text-gray-900 dark:text-white">{selectedAluno.encarregado_nome || 'Não informado'}</p>
-              </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Encarregado</p>
+              <p className="font-medium text-gray-900 dark:text-white">{selectedAluno.encarregado_nome || 'Não informado'}</p>
             </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Telefone</p>
+              <p className="font-medium text-gray-900 dark:text-white">{selectedAluno.telefone || '—'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Grupo Sanguíneo</p>
+              <p className="font-medium text-gray-900 dark:text-white">{selectedAluno.grupo_sanguineo || '—'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Contacto Emergência</p>
+              <p className="font-medium text-gray-900 dark:text-white">{selectedAluno.contacto_emergencia_nome ? `${selectedAluno.contacto_emergencia_nome} (${selectedAluno.contacto_emergencia_telefone || '—'})` : '—'}</p>
+            </div>
+          </div>
+
+            {selectedAluno.controlo_parental?.activo && (
+              <div className="mt-4 p-4 bg-primary-50 dark:bg-navy-800 rounded-2xl border border-primary-200 dark:border-navy-700">
+                <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-2">
+                  <ShieldCheck className="w-5 h-5 text-primary-500" /> Controlo Parental Ativo
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {selectedAluno.controlo_parental.observacoes || 'Sem observações adicionais registadas.'}
+                </p>
+                {selectedAluno.controlo_parental.contactos_autorizados?.length > 0 && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                    Contactos autorizados: {selectedAluno.controlo_parental.contactos_autorizados.join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
 
             {selectedAluno.matriculas?.length > 0 && (
               <div className="mt-6">
@@ -410,6 +627,42 @@ const Alunos = () => {
                       <StatusChip status={matricula.estado} />
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {selectedAluno.classificacoes?.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <History className="w-5 h-5 text-primary-500" /> Histórico de Classificações
+                </h4>
+                <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Classe</th>
+                        <th>Ano Letivo</th>
+                        <th>Período</th>
+                        <th>Média</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedAluno.classificacoes.map((c) => (
+                        <tr key={c._id || c.id}>
+                          <td className="capitalize">{c.classe}</td>
+                          <td>{c.ano_letivo}</td>
+                          <td className="capitalize">{c.periodo}</td>
+                          <td className={`font-bold ${parseFloat(c.media_geral) >= 10 ? 'text-success' : 'text-error'}`}>
+                            {parseFloat(c.media_geral).toFixed(1)}
+                          </td>
+                          <td>
+                            <StatusChip status={c.estado === 'aprovado' ? 'ativo' : 'abandono'} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}

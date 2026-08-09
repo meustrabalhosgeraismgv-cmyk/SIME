@@ -118,6 +118,16 @@ const getAlunoById = async (req, res) => {
           encarregado_id: 1,
           instituicao_id: 1,
           estado: 1,
+          telefone: 1,
+          email: 1,
+          morada: 1,
+          bi: 1,
+          grupo_sanguineo: 1,
+          religiao: 1,
+          contacto_emergencia_nome: 1,
+          contacto_emergencia_telefone: 1,
+          controlo_parental: 1,
+          foto_url: 1,
           created_at: 1,
           instituicao_nome: '$instituicao.nome',
           encarregado_nome: '$encarregado.nome_completo',
@@ -161,7 +171,12 @@ const getAlunoById = async (req, res) => {
       }
     ]).toArray();
 
-    res.json({ ...aluno, matriculas });
+    const classificacoes = await db.collection('classificacoes')
+      .find({ aluno_id: new ObjectId(id) })
+      .sort({ classe_numero: -1, ano_letivo: -1 })
+      .toArray();
+
+    res.json({ ...aluno, matriculas, classificacoes });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar aluno' });
   }
@@ -170,7 +185,13 @@ const getAlunoById = async (req, res) => {
 const createAluno = async (req, res) => {
   try {
     const db = getDB();
-    const { nome_completo, data_nascimento, sexo, naturalidade, numero_estudante, encarregado_id, instituicao_id } = req.body;
+    const {
+      nome_completo, data_nascimento, sexo, naturalidade, numero_estudante,
+      encarregado_id, instituicao_id,
+      telefone, email, morada, bi, grupo_sanguineo, religiao,
+      contacto_emergencia_nome, contacto_emergencia_telefone,
+      controlo_parental, foto_url
+    } = req.body;
 
     const existing = await db.collection('alunos').findOne({ numero_estudante });
     if (existing) {
@@ -185,6 +206,20 @@ const createAluno = async (req, res) => {
       numero_estudante,
       encarregado_id: encarregado_id ? new ObjectId(encarregado_id) : null,
       instituicao_id: new ObjectId(instituicao_id),
+      telefone: telefone || '',
+      email: email || '',
+      morada: morada || '',
+      bi: bi || '',
+      grupo_sanguineo: grupo_sanguineo || '',
+      religiao: religiao || '',
+      contacto_emergencia_nome: contacto_emergencia_nome || '',
+      contacto_emergencia_telefone: contacto_emergencia_telefone || '',
+      controlo_parental: controlo_parental || {
+        activo: false,
+        permissoes: {},
+        contactos_autorizados: []
+      },
+      foto_url: foto_url || null,
       estado: 'ativo',
       created_at: new Date()
     });
@@ -204,7 +239,13 @@ const updateAluno = async (req, res) => {
   try {
     const db = getDB();
     const { id } = req.params;
-    const { nome_completo, data_nascimento, sexo, naturalidade, numero_estudante, encarregado_id, instituicao_id, estado } = req.body;
+    const {
+      nome_completo, data_nascimento, sexo, naturalidade, numero_estudante,
+      encarregado_id, instituicao_id, estado,
+      telefone, email, morada, bi, grupo_sanguineo, religiao,
+      contacto_emergencia_nome, contacto_emergencia_telefone,
+      controlo_parental, foto_url
+    } = req.body;
 
     const updateData = {
       nome_completo,
@@ -216,6 +257,17 @@ const updateAluno = async (req, res) => {
       instituicao_id: new ObjectId(instituicao_id),
       estado
     };
+
+    if (telefone !== undefined) updateData.telefone = telefone;
+    if (email !== undefined) updateData.email = email;
+    if (morada !== undefined) updateData.morada = morada;
+    if (bi !== undefined) updateData.bi = bi;
+    if (grupo_sanguineo !== undefined) updateData.grupo_sanguineo = grupo_sanguineo;
+    if (religiao !== undefined) updateData.religiao = religiao;
+    if (contacto_emergencia_nome !== undefined) updateData.contacto_emergencia_nome = contacto_emergencia_nome;
+    if (contacto_emergencia_telefone !== undefined) updateData.contacto_emergencia_telefone = contacto_emergencia_telefone;
+    if (controlo_parental !== undefined) updateData.controlo_parental = controlo_parental;
+    if (foto_url !== undefined) updateData.foto_url = foto_url;
 
     await db.collection('alunos').updateOne(
       { _id: new ObjectId(id) },

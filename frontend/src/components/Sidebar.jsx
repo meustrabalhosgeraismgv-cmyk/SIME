@@ -20,6 +20,11 @@ import {
   Bell,
   CheckCircle,
   MessageCircle,
+  FolderOpen,
+  MessageSquareText,
+  ShieldAlert,
+  UserCog,
+  Award,
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -46,9 +51,23 @@ const Sidebar = () => {
       ]
     },
     {
+      title: 'Gestão Escolar',
+      items: [
+        { icon: FolderOpen, label: 'Ficheiros Escolares', path: '/app/ficheiros-escolares' },
+        { icon: UserCog, label: 'Recursos Humanos', path: '/app/recursos-humanos' },
+      ]
+    },
+    {
       title: 'Comunicação',
       items: [
+        { icon: MessageSquareText, label: 'SMS', path: '/app/sms' },
         { icon: MessageCircle, label: 'Mensagens', path: '/app/chat' },
+      ]
+    },
+    {
+      title: 'Segurança',
+      items: [
+        { icon: ShieldAlert, label: 'SOS & Denúncias', path: '/app/denuncias' },
       ]
     },
     {
@@ -79,10 +98,18 @@ const Sidebar = () => {
       ]
     },
     {
+      title: 'Gestão Escolar',
+      items: [
+        { icon: FolderOpen, label: 'Ficheiros Escolares', path: '/app/ficheiros-escolares' },
+        { icon: UserCog, label: 'Recursos Humanos', path: '/app/recursos-humanos' },
+      ]
+    },
+    {
       title: 'Comunicação',
       items: [
         { icon: Newspaper, label: 'Gerir Notícias', path: '/app/noticias-instituicao' },
         { icon: Bell, label: 'Comunicados', path: '/app/comunicados' },
+        { icon: MessageSquareText, label: 'SMS', path: '/app/sms' },
         { icon: MessageCircle, label: 'Mensagens', path: '/app/chat' },
         { icon: Settings, label: 'Gerir Perfil', path: '/app/gerir-perfil' },
       ]
