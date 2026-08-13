@@ -70,18 +70,17 @@ router.put('/users/:id/aprovar', authenticateToken, authorizeRole('admin'), asyn
 
     if (user.email) {
       const { enviarEmail } = require('../config/email');
+      const { templateEmail } = require('../config/emailTemplate');
       await enviarEmail({
         to: user.email,
         subject: 'A sua conta no SIME foi aprovada',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
-            <h2 style="color: #0D47A1; margin: 0 0 8px;">SIME — Educa Mais+ Angola</h2>
-            <p style="color: #374151; font-size: 15px;">Olá <strong>${user.nome || user.username}</strong>,</p>
-            <p style="color: #374151; font-size: 15px;">A sua conta foi <strong style="color: #2E7D32;">aprovada</strong> pelo administrador do sistema. Já pode iniciar sessão na plataforma.</p>
-            <p style="color: #6b7280; font-size: 13px;">Utilizador: <strong>${user.username}</strong></p>
-            <p style="color: #6b7280; font-size: 13px;">Se não foi você, contacte o administrador do sistema.</p>
-          </div>
-        `
+        html: templateEmail({
+          titulo: 'Conta aprovada ✓',
+          mensagem: `Olá <strong>${user.nome || user.username}</strong>, a sua conta no SIME foi <strong>aprovada</strong> pelo administrador do sistema. Já pode iniciar sessão e utilizar a plataforma.`,
+          nota: `Utilizador: <strong>${user.username}</strong>`,
+          botaoTexto: 'Iniciar sessão',
+          botaoUrl: 'https://sime-gov.vercel.app/login'
+        })
       });
     }
 

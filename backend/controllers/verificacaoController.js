@@ -3,6 +3,7 @@ const { ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { enviarEmail } = require('../config/email');
+const { templateCodigo } = require('../config/emailTemplate');
 const { enviarSMS } = require('./smsController');
 
 const VALIDADE_CODIGO_MS = 10 * 60 * 1000;
@@ -16,25 +17,6 @@ function normalizarTelefone(telefone) {
   let s = String(telefone).replace(/[^\d]/g, '');
   if (s.length === 9) s = '244' + s;
   return '+' + s;
-}
-
-function templateCodigo(codigo, tipo) {
-  const titulo = tipo === 'senha'
-    ? 'Recuperação de palavra-passe'
-    : 'Verificação de conta';
-  const mensagem = tipo === 'senha'
-    ? 'Recebemos um pedido para recuperar a sua palavra-passe. Use o código abaixo para continuar.'
-    : 'Use o código abaixo para concluir o seu registo na plataforma.';
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
-      <h2 style="color: #0D47A1; margin: 0 0 8px;">SIME — Educa Mais+ Angola</h2>
-      <p style="color: #374151; font-size: 15px;">${mensagem}</p>
-      <div style="background: #E3F2FD; border-radius: 10px; padding: 18px; text-align: center; margin: 16px 0;">
-        <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #0D47A1;">${codigo}</span>
-      </div>
-      <p style="color: #6b7280; font-size: 13px;">O código é válido por 10 minutos. Se não foi você que pediu, ignore este email.</p>
-    </div>
-  `;
 }
 
 const solicitarVerificacao = async (req, res) => {
