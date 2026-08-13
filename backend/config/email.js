@@ -1,7 +1,7 @@
 // Configuração de email via API do Brevo (abordagem igual ao SIREXA)
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
-const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'venanciomartinse@gmail.com';
+const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'meustrabalhosgeraismgv@gmail.com';
 const SENDER_NAME = process.env.BREVO_SENDER_NAME || 'SIME - Educa Mais+ Angola';
 
 /**
