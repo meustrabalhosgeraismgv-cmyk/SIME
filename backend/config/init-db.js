@@ -20,7 +20,7 @@ const initDatabase = () => {
     CREATE TABLE IF NOT EXISTS instituicoes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,
-      tipo TEXT NOT NULL CHECK(tipo IN ('pre_escolar', 'ensino_primario', 'ensino_medio', 'ensino_superior')),
+      tipo TEXT NOT NULL CHECK(tipo IN ('pre_escolar', 'ensino_primario', 'ensino_medio')),
       endereco TEXT,
       telefone TEXT,
       email TEXT,
@@ -256,7 +256,7 @@ const initDatabase = () => {
       instituicao_id INTEGER NOT NULL,
       nome TEXT NOT NULL,
       tipo TEXT NOT NULL DEFAULT 'curso' CHECK(tipo IN ('turma', 'curso')),
-      grau TEXT NOT NULL DEFAULT 'licenciatura' CHECK(grau IN ('pre_escolar', '1_ciclo', '2_ciclo', 'ensino_medio', 'tecnico', 'licenciatura', 'mestrado', 'doutorado')),
+      grau TEXT NOT NULL DEFAULT '1_ciclo' CHECK(grau IN ('pre_escolar', '1_ciclo', '2_ciclo', 'ensino_medio', 'tecnico')),
       duracao TEXT,
       vagas_totais INTEGER DEFAULT 0,
       vagas_disponiveis INTEGER DEFAULT 0,

@@ -3,11 +3,22 @@ const router = express.Router();
 const { ObjectId } = require('mongodb');
 const { getDB } = require('../config/mongodb');
 const { login, register, uploadFoto, getPerfilCompleto } = require('../controllers/authController');
+const {
+  solicitarVerificacao,
+  verificarCodigo,
+  esqueciSenha,
+  redefinirSenha
+} = require('../controllers/verificacaoController');
 const { authenticateToken } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
 router.post('/login', login);
 router.post('/register', register);
+
+router.post('/solicitar-verificacao', solicitarVerificacao);
+router.post('/verificar-codigo', verificarCodigo);
+router.post('/esqueci-senha', esqueciSenha);
+router.post('/redefinir-senha', redefinirSenha);
 
 router.get('/perfil', authenticateToken, async (req, res) => {
   try {

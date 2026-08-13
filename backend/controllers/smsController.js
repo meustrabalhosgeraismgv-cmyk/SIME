@@ -10,21 +10,51 @@ async function enviarSMS({ telefone, mensagem, destinatario_id = null, destinata
 
   if (SMS_CONFIG.enabled && telefone) {
     try {
-      const url = SMS_CONFIG.apiUrl.replace('{telefone}', encodeURIComponent(telefone)).replace('{mensagem}', encodeURIComponent(mensagem));
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
+      let response;
+      if (SMS_CONFIG.provider === 'brevo') {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { 'X-Api-Key': SMS_CONFIG.apiKey || '' },
-        signal: controller.signal
-      });
-      clearTimeout(timer);
+        response = await fetch(SMS_CONFIG.apiUrl, {
+          method: 'POST',
+          headers: {
+            'api-key': SMS_CONFIG.apiKey,
+            'content-type': 'application/json',
+            'accept': 'application/json'
+          },
+          body: JSON.stringify({
+            type: 'transactional',
+            unicodeEnabled: false,
+            sender: SMS_CONFIG.sender,
+            recipient: telefone,
+            content: mensagem
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+      } else {
+        const url = SMS_CONFIG.apiUrl.replace('{telefone}', encodeURIComponent(telefone)).replace('{mensagem}', encodeURIComponent(mensagem));
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+
+        response = await fetch(url, {
+          method: 'GET',
+          headers: { 'X-Api-Key': SMS_CONFIG.apiKey || '' },
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+      }
 
       gateway = SMS_CONFIG.provider;
-      estado = response.ok ? 'enviado' : 'falhou';
+      if (response.ok) {
+        estado = 'enviado';
+      } else {
+        const detalhe = await response.text().catch(() => '');
+        console.error('[SMS] Erro no gateway:', response.status, detalhe);
+        estado = 'falhou';
+      }
     } catch (error) {
-      console.error('Erro no gateway SMS:', error.message);
+      console.error('[SMS] Erro no gateway:', error.message);
       gateway = SMS_CONFIG.provider;
       estado = 'erro';
     }

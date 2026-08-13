@@ -122,29 +122,12 @@ function NoticiaDestaque({ noticia }) {
   )
 }
 
-const FALLBACK_HERO_IMAGES = [
-  '/imagens-escolas/isced-1.jpg',
-  '/imagens-escolas/isced-10.jpg',
-  '/imagens-escolas/isced-15.jpg',
-  '/imagens-escolas/isced-21.jpg',
-  '/imagens-escolas/ujes-1.jpg',
-];
-
 export default function NoticiasPage() {
   const [noticias, setNoticias] = useState([])
   const [destaque, setDestaque] = useState(null)
   const [categoriaAtiva, setCategoriaAtiva] = useState('todas')
   const [paginaAtual, setPaginaAtual] = useState(1)
   const [carregando, setCarregando] = useState(true)
-  const [heroIndex, setHeroIndex] = useState(0)
-  const [heroImages, setHeroImages] = useState(FALLBACK_HERO_IMAGES)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHeroIndex(prev => (prev + 1) % heroImages.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [heroImages.length]);
 
   useEffect(() => {
     async function carregarDados() {
@@ -158,10 +141,6 @@ export default function NoticiasPage() {
         const lista = Array.isArray(noticiasData) ? noticiasData : []
         setNoticias(lista)
         setDestaque(destaqueRes.data?.[0] || destaqueRes.data || null)
-        const imagensNoticias = lista.filter(n => n.imagem || n.imagem_url).map(n => n.imagem || n.imagem_url);
-        if (imagensNoticias.length > 0) {
-          setHeroImages(imagensNoticias.slice(0, 10));
-        }
       } catch {
         setNoticias([])
         setDestaque(null)
@@ -189,18 +168,9 @@ export default function NoticiasPage() {
 
   return (
     <div className="min-h-screen bg-[#F4F6F8] dark:bg-gray-900 transition-colors">
-      {/* Hero with rotating images */}
+      {/* Hero */}
       <section className="relative overflow-hidden rounded-b-xl px-4 sm:px-8 py-20 flex flex-col items-center justify-center text-center min-h-[380px]">
-        {heroImages.map((img, idx) => (
-          <div key={idx}
-            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
-            style={{
-              backgroundImage: `url(${img})`,
-              opacity: heroIndex === idx ? 1 : 0,
-            }}
-          />
-        ))}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0D47A1]/85 via-[#0D47A1]/75 to-[#2196F3]/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0D47A1] via-[#0D47A1] to-[#1976D2]" />
 
         <div className="relative z-10 max-w-4xl mx-auto space-y-4">
           <div className="flex items-center justify-center gap-3 mb-2">
@@ -212,16 +182,6 @@ export default function NoticiasPage() {
           <p className="text-lg text-white/90 max-w-2xl mx-auto">
             Fique por dentro de tudo que acontece na educação do nosso município
           </p>
-
-          <div className="flex items-center justify-center gap-2 mt-4">
-            {heroImages.map((_, idx) => (
-              <button key={idx} onClick={() => setHeroIndex(idx)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  heroIndex === idx ? 'bg-white w-6' : 'bg-white/40 hover:bg-white/60'
-                }`}
-              />
-            ))}
-          </div>
         </div>
       </section>
 

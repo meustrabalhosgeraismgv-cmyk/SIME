@@ -130,7 +130,7 @@ const Estatisticas = () => {
     name: item.tipo === 'pre_escolar' ? 'Pré-Escolar' :
            item.tipo === 'ensino_primario' ? 'Primário' :
            item.tipo === 'ensino_medio' ? 'Médio' :
-           item.tipo === 'ensino_superior' ? 'Superior' : item.tipo,
+           item.tipo,
     value: item.total
   })) || [];
 

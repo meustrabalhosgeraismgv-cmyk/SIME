@@ -7,20 +7,11 @@ import {
 } from 'lucide-react';
 import { calendarService } from '../../services/api';
 
-const CALENDARIO_IMAGES = [
-  '/imagens-escolas/isced-1.jpg',
-  '/imagens-escolas/isced-10.jpg',
-  '/imagens-escolas/isced-21.jpg',
-  '/imagens-escolas/ujes-1.jpg',
-  '/imagens-escolas/isced-15.jpg',
-];
-
 const NIVEIS = [
   { value: '', label: 'Todos' },
   { value: 'pre_escolar', label: 'Pré-Escolar' },
   { value: 'ensino_primario', label: 'Primário' },
   { value: 'ensino_medio', label: 'Médio' },
-  { value: 'ensino_superior', label: 'Superior' },
 ];
 
 const TIPO_STYLE = {
@@ -74,20 +65,12 @@ export default function CalendarioPage() {
   const now = new Date();
   const [currentDate, setCurrentDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
   const [nivelFiltro, setNivelFiltro] = useState('');
-  const [heroIndex, setHeroIndex] = useState(0);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
   const isCurrentMonth = now.getFullYear() === year && now.getMonth() === month;
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHeroIndex(prev => (prev + 1) % CALENDARIO_IMAGES.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     fetchEvents();
@@ -150,16 +133,7 @@ export default function CalendarioPage() {
     <div className="min-h-screen bg-gray-50">
       {/* ===== HERO ===== */}
       <section className="relative overflow-hidden rounded-b-xl px-4 sm:px-8 py-20 flex flex-col items-center justify-center text-center min-h-[380px]">
-        {CALENDARIO_IMAGES.map((img, idx) => (
-          <div key={idx}
-            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
-            style={{
-              backgroundImage: `url(${img})`,
-              opacity: heroIndex === idx ? 1 : 0,
-            }}
-          />
-        ))}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0061a4]/85 via-[#0061a4]/75 to-[#00497d]/90" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0061a4] via-[#0074bd] to-[#00497d]" />
 
         <div className="relative z-10 max-w-4xl mx-auto space-y-4">
           <span className="inline-block rounded-full bg-white/15 px-4 py-1.5 text-sm font-medium text-white/90 backdrop-blur-sm">
@@ -174,17 +148,6 @@ export default function CalendarioPage() {
           <p className="text-lg text-white/90 max-w-2xl mx-auto">
             Consulte as datas importantes, períodos letivos, férias e exames do ano lectivo em curso.
           </p>
-
-          {/* Carousel dots */}
-          <div className="flex items-center justify-center gap-2 mt-4">
-            {CALENDARIO_IMAGES.map((_, idx) => (
-              <button key={idx} onClick={() => setHeroIndex(idx)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  heroIndex === idx ? 'bg-white w-6' : 'bg-white/40 hover:bg-white/60'
-                }`}
-              />
-            ))}
-          </div>
         </div>
       </section>
 

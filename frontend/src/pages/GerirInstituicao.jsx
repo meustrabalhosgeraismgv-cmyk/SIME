@@ -13,7 +13,7 @@ const GerirInstituicao = () => {
   const [activeTab, setActiveTab] = useState('dados');
   const [cursos, setCursos] = useState([]);
   const [info, setInfo] = useState(null);
-  const [novoCurso, setNovoCurso] = useState({ nome: '', grau: 'licenciatura', duracao: '', vagas_totais: 0, turno: 'diurno' });
+  const [novoCurso, setNovoCurso] = useState({ nome: '', grau: 'tecnico', duracao: '', vagas_totais: 0, turno: 'diurno' });
   const [form, setForm] = useState({
     nome: '', endereco: '', telefone: '', email: '', responsavel: '',
     latitude: '', longitude: '', lema: '', descricao: '',
@@ -86,7 +86,7 @@ const GerirInstituicao = () => {
     try {
       const res = await cursoService.create(user?.entidade_id, novoCurso);
       setCursos([...cursos, { ...novoCurso, id: res.data.id, estado: 'ativo', vagas_disponiveis: novoCurso.vagas_totais }]);
-      setNovoCurso({ nome: '', grau: 'licenciatura', duracao: '', vagas_totais: 0, turno: 'diurno' });
+      setNovoCurso({ nome: '', grau: 'tecnico', duracao: '', vagas_totais: 0, turno: 'diurno' });
     } catch (e) { alert('Erro ao adicionar curso'); }
   };
 
@@ -217,9 +217,7 @@ const GerirInstituicao = () => {
                 <div>
                   <select value={novoCurso.grau} onChange={e => setNovoCurso({...novoCurso, grau: e.target.value})} className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`}>
                     <option value="tecnico">Técnico</option>
-                    <option value="licenciatura">Licenciatura</option>
-                    <option value="mestrado">Mestrado</option>
-                    <option value="doutorado">Doutorado</option>
+                    <option value="medio">Médio</option>
                   </select>
                 </div>
                 <div>

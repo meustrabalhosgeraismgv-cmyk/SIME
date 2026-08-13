@@ -31,7 +31,7 @@ router.post('/:instituicaoId', authenticateToken, authorizeRole('admin', 'instit
       instituicao_id: req.params.instituicaoId,
       nome,
       tipo: tipo || 'curso',
-      grau: grau || 'licenciatura',
+      grau: grau || 'tecnico',
       duracao: duracao || null,
       vagas_totais: vagas_totais || 0,
       vagas_disponiveis: vagas_totais || 0,

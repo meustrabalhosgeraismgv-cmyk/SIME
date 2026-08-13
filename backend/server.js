@@ -81,55 +81,8 @@ async function start() {
     const db = getDB();
     if (!db) return res.status(503).json({ error: 'DB offline' });
 
-    const COORDS = {
-      'ISCED do Huambo': [-12.77475, 15.74914],
-      'Universidade José Eduardo dos Santos': [-12.79815, 15.73324],
-      'UJES': [-12.79815, 15.73324],
-      'Politécnico Superior do Huambo': [-12.77581, 15.72912],
-      'Universidade Católica': [-12.76632, 15.74850],
-      'Faculdade de Artes': [-12.76632, 15.74850],
-      'Faculdade de Direito do Huambo': [-12.79950, 15.73410],
-      'Ciências da Saúde do Huambo': [-12.76815, 15.72590],
-      'José Martí': [-12.77910, 15.73890],
-      'Maria de Lurdes': [-12.78051, 15.73949],
-      'Calunga II': [-12.78440, 15.72110],
-      'Namunga': [-12.78051, 15.73949],
-      'Politécnico do Huambo': [-12.77120, 15.74415],
-      'Rei Livongue': [-12.76869, 15.72862],
-      'nº 34': [-12.76750, 15.72480],
-      'Augusto Ngangula': [-12.76750, 15.72480],
-      'Dangereux': [-12.76105, 15.75780],
-      'Cangombe': [-12.19056, 15.84945],
-      '111 Benfica': [-12.75407, 15.74315],
-      'Nº 111 Benfica': [-12.75407, 15.74315],
-      'Nº 32': [-12.77674, 15.74200],
-      'Nº 45 Caluquembe': [-12.73647, 15.78871],
-      'Nº 78 Saiombo': [-12.77044, 15.80751],
-      'Sonho dourado': [-12.77150, 15.74985],
-      'Estrelinha': [-12.77150, 15.74985],
-      'Crescer': [-12.19056, 15.84945],
-      'Futuro': [-12.9000, 15.5500],
-      '7 Cores': [-12.78865, 15.74124],
-      'IGCA': [-12.77733, 15.73537],
-    };
-
-    const schools = await db.collection('instituicoes').find({}).toArray();
-    let updated = 0;
-
-    for (const s of schools) {
-      let coords = null;
-      for (const [key, val] of Object.entries(COORDS)) {
-        if (s.nome && s.nome.includes(key)) { coords = val; break; }
-      }
-      if (coords) {
-        await db.collection('instituicoes').updateOne(
-          { _id: s._id },
-          { $set: { lat: coords[0], lng: coords[1] } }
-        );
-        updated++;
-      }
-    }
-    res.json({ message: `Migrated ${updated}/${schools.length} schools` });
+    const schools = await db.collection('instituicoes').find({ latitude: null, longitude: null }).toArray();
+    res.json({ message: `Faltam coordenadas em ${schools.length} instituições.`, pendentes: schools.length });
   });
 
   app.get('/api/health', (req, res) => {

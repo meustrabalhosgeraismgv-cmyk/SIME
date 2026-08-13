@@ -181,7 +181,7 @@ export default function LandingPage() {
                           <p className="text-sm text-gray-500 mt-1">{escola.municipio_nome}</p>
                         </div>
                         <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#0061a4]/10 text-[#0061a4]">
-                          {escola.tipo === 'pre_escolar' ? 'Pré-Escolar' : escola.tipo === 'ensino_primario' ? 'Primário' : escola.tipo === 'ensino_medio' ? 'Médio' : escola.tipo === 'ensino_superior' ? 'Superior' : escola.tipo}
+                          {escola.tipo === 'pre_escolar' ? 'Pré-Escolar' : escola.tipo === 'ensino_primario' ? 'Primário' : escola.tipo === 'ensino_medio' ? 'Médio' : escola.tipo}
                         </span>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">

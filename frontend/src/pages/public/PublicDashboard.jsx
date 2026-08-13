@@ -8,14 +8,6 @@ import {
 import { instituicaoService } from '../../services/api';
 import MapaAngola from '../../components/MapaAngola';
 
-const HERO_IMAGES = [
-  '/imagens-escolas/isced-1.jpg',
-  '/imagens-escolas/isced-10.jpg',
-  '/imagens-escolas/isced-21.jpg',
-  '/imagens-escolas/ujes-1.jpg',
-  '/imagens-escolas/isced-15.jpg',
-];
-
 export default function PublicDashboard() {
   const [escolas, setEscolas] = useState([]);
   const [noticias, setNoticias] = useState([]);
@@ -24,14 +16,6 @@ export default function PublicDashboard() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const carouselRef = useRef(null);
-  const [heroImageIndex, setHeroImageIndex] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHeroImageIndex(prev => (prev + 1) % HERO_IMAGES.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const scrollCarousel = (direction) => {
     if (carouselRef.current) {
@@ -89,18 +73,8 @@ export default function PublicDashboard() {
     <div className="min-h-screen bg-[#f8f9fb]">
       {/* Hero Section with Search */}
       <section className="relative overflow-hidden rounded-b-xl px-4 sm:px-8 py-20 flex flex-col items-center justify-center text-center min-h-[420px]">
-        {/* Background image carousel */}
-        {HERO_IMAGES.map((img, idx) => (
-          <div key={idx}
-            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
-            style={{
-              backgroundImage: `url(${img})`,
-              opacity: heroImageIndex === idx ? 1 : 0,
-            }}
-          />
-        ))}
-        {/* Dark overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0061a4]/85 via-[#0061a4]/75 to-[#00497d]/90" />
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0061a4] via-[#0061a4] to-[#00497d]" />
 
         <div className="relative z-10 max-w-3xl w-full space-y-4">
           <span className="text-sm font-semibold text-[#d1e4ff] uppercase tracking-widest">República de Angola</span>
@@ -129,17 +103,6 @@ export default function PublicDashboard() {
                 Pesquisar
               </Link>
             </div>
-          </div>
-
-          {/* Carousel dots */}
-          <div className="flex items-center justify-center gap-2 mt-6">
-            {HERO_IMAGES.map((_, idx) => (
-              <button key={idx} onClick={() => setHeroImageIndex(idx)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  heroImageIndex === idx ? 'bg-white w-6' : 'bg-white/40 hover:bg-white/60'
-                }`}
-              />
-            ))}
           </div>
         </div>
       </section>
@@ -259,13 +222,11 @@ export default function PublicDashboard() {
                   pre_escolar: { bg: 'from-pink-500 to-rose-400', icon: 'bg-pink-100' },
                   ensino_primario: { bg: 'from-blue-500 to-blue-400', icon: 'bg-blue-100' },
                   ensino_medio: { bg: 'from-green-500 to-emerald-400', icon: 'bg-green-100' },
-                  ensino_superior: { bg: 'from-red-500 to-rose-400', icon: 'bg-red-100' },
                 };
                 const tc = tipoCores[escola.tipo] || tipoCores.ensino_medio;
                 const tipoLabel = escola.tipo === 'pre_escolar' ? 'Pré-Escolar' :
                   escola.tipo === 'ensino_primario' ? 'Primário' :
-                  escola.tipo === 'ensino_medio' ? 'Médio' :
-                  escola.tipo === 'ensino_superior' ? 'Superior' : escola.tipo;
+                  escola.tipo === 'ensino_medio' ? 'Médio' : escola.tipo;
 
                 return (
                   <Link key={escola.id} to={`/escolas/${escola.id}`}

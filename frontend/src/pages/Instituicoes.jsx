@@ -274,7 +274,6 @@ const Instituicoes = () => {
                 <option value="pre_escolar">Ensino Pré-Escolar</option>
                 <option value="ensino_primario">Ensino Primário</option>
                 <option value="ensino_medio">Ensino Médio</option>
-                <option value="ensino_superior">Ensino Superior</option>
               </select>
             </div>
 

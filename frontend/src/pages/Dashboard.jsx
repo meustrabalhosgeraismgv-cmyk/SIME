@@ -45,7 +45,7 @@ const Dashboard = () => {
   if (loading) return <Loading text="A carregar painel de controlo..." />;
 
   const escolasPorTipo = stats?.instituicoes_por_tipo?.map(item => ({
-    name: item.tipo === 'pre_escolar' ? 'Pré-Escolar' : item.tipo === 'ensino_primario' ? 'Primário' : item.tipo === 'ensino_medio' ? 'Médio' : item.tipo === 'ensino_superior' ? 'Superior' : item.tipo,
+    name: item.tipo === 'pre_escolar' ? 'Pré-Escolar' : item.tipo === 'ensino_primario' ? 'Primário' : item.tipo === 'ensino_medio' ? 'Médio' : item.tipo,
     value: item.total
   })) || [];
 

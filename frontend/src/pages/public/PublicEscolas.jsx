@@ -16,7 +16,6 @@ const TIPOS = [
   { value: 'pre_escolar', label: 'Pré-Escolar' },
   { value: 'ensino_primario', label: 'Primário' },
   { value: 'ensino_medio', label: 'Médio' },
-  { value: 'ensino_superior', label: 'Superior' },
 ];
 
 const corVagas = (vagasDisponiveis, totalVagas) => {
@@ -35,22 +34,10 @@ const badgeCor = (tipo) => {
       return { bg: '#E3F2FD', text: '#0D47A1' };
     case 'ensino_medio':
       return { bg: '#E8F5E9', text: '#2E7D32' };
-    case 'ensino_superior':
-      return { bg: '#FCE4EC', text: '#C62828' };
     default:
       return { bg: '#F5F5F5', text: '#616161' };
   }
 };
-
-const ESCOLA_HERO_IMAGES = [
-  '/imagens-escolas/isced-1.jpg',
-  '/imagens-escolas/isced-3.jpg',
-  '/imagens-escolas/isced-7.jpg',
-  '/imagens-escolas/isced-10.jpg',
-  '/imagens-escolas/isced-15.jpg',
-  '/imagens-escolas/isced-21.jpg',
-  '/imagens-escolas/ujes-1.jpg',
-];
 
 export default function PublicEscolas() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -58,20 +45,12 @@ export default function PublicEscolas() {
   const [carregando, setCarregando] = useState(false);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [totalItens, setTotalItens] = useState(0);
-  const [heroIndex, setHeroIndex] = useState(0);
 
   const buscaTexto = searchParams.get('q') || '';
   const tipoFiltro = searchParams.get('tipo') || '';
   const paginaAtual = parseInt(searchParams.get('page') || '1', 10);
 
   const [inputBusca, setInputBusca] = useState(buscaTexto);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHeroIndex(prev => (prev + 1) % ESCOLA_HERO_IMAGES.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const buscarEscolas = useCallback(async () => {
     setCarregando(true);
@@ -140,18 +119,9 @@ export default function PublicEscolas() {
         fontFamily: "'Inter', 'Segoe UI', sans-serif",
       }}
     >
-      {/* Header with rotating images */}
+      {/* Header */}
       <section className="relative overflow-hidden rounded-b-xl px-4 sm:px-8 py-20 flex flex-col items-center justify-center text-center min-h-[380px]">
-        {ESCOLA_HERO_IMAGES.map((img, idx) => (
-          <div key={idx}
-            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
-            style={{
-              backgroundImage: `url(${img})`,
-              opacity: heroIndex === idx ? 1 : 0,
-            }}
-          />
-        ))}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0D47A1]/85 via-[#0D47A1]/75 to-[#2196F3]/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0D47A1] via-[#0D47A1] to-[#1565C0]" />
 
         <div className="relative z-10 max-w-4xl mx-auto space-y-4">
           <School size={40} className="text-white/90 mx-auto" />
@@ -161,16 +131,6 @@ export default function PublicEscolas() {
           <p className="text-lg text-white/90 max-w-2xl mx-auto">
             Encontre instituições de ensino em Angola
           </p>
-
-          <div className="flex items-center justify-center gap-2 mt-4">
-            {ESCOLA_HERO_IMAGES.map((_, idx) => (
-              <button key={idx} onClick={() => setHeroIndex(idx)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  heroIndex === idx ? 'bg-white w-6' : 'bg-white/40 hover:bg-white/60'
-                }`}
-              />
-            ))}
-          </div>
         </div>
       </section>
 
@@ -390,7 +350,6 @@ export default function PublicEscolas() {
                         {escola.tipo === 'pre_escolar' ? 'Pré-Escolar' :
                          escola.tipo === 'ensino_primario' ? 'Primário' :
                          escola.tipo === 'ensino_medio' ? 'Médio' :
-                         escola.tipo === 'ensino_superior' ? 'Superior' :
                          'N/I'}
                       </span>
                     </div>
@@ -426,7 +385,6 @@ export default function PublicEscolas() {
                         escola.tipo === 'pre_escolar' ? 'Ensino Pré-Escolar' :
                         escola.tipo === 'ensino_primario' ? 'Ensino Primário' :
                         escola.tipo === 'ensino_medio' ? 'Ensino Médio' :
-                        escola.tipo === 'ensino_superior' ? 'Ensino Superior' :
                         escola.tipo || 'N/I'
                       }</span>
                     </div>

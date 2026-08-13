@@ -86,13 +86,11 @@ export function LogoImage({ size = 'default', className = '' }) {
   };
   const h = sizes[size] || sizes.default;
 
-  return (
-    <img src="/Logotipo.png" alt="SIME - Sistema Integrado de Monitorização Escolar" style={{ height: h, width: 'auto' }} className={`object-contain ${className}`} />
-  );
+  return <LogoIcon size={h} className={`object-contain ${className}`} />;
 }
 
 export function LogoImageIcon({ size = 32, className = '' }) {
-  return <img src="/favicon/android-chrome-192x192.png" alt="SIME" style={{ height: size, width: size }} className={`object-contain rounded-lg ${className}`} />;
+  return <LogoIcon size={size} className={`object-contain rounded-lg ${className}`} />;
 }
 
 export function LogoWhite({ size = 'default', className = '' }) {

@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { LogoImageIcon } from './Logo';
+import { LogoIcon, LogoImageIcon } from './Logo';
 import { 
   LayoutDashboard, 
   School, 
@@ -163,7 +163,12 @@ const Sidebar = () => {
         {sidebarCollapsed ? (
           <LogoImageIcon size={36} />
         ) : (
-          <img src="/Logotipo.png" alt="SIME" className="h-10 w-auto object-contain animate-fade-in" />
+          <div className="flex items-center gap-2 animate-fade-in">
+            <LogoIcon size={40} />
+            <span className="text-white font-extrabold tracking-tight text-sm leading-tight">
+              Educa Mais<span className="text-[#F44336]">+</span> Angola
+            </span>
+          </div>
         )}
       </div>
 

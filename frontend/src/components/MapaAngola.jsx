@@ -326,7 +326,7 @@ export default function MapaAngola({ escolas = [], compact = false, onSelectEsco
       const tipoLabel = escola.tipo === 'pre_escolar' ? 'Ensino Pré-Escolar' :
                        escola.tipo === 'ensino_primario' ? 'Ensino Primário' :
                        escola.tipo === 'ensino_medio' ? 'Ensino Médio' :
-                       escola.tipo === 'ensino_superior' ? 'Ensino Superior' : escola.tipo;
+                       escola.tipo;
 
       marker.bindPopup(`
         <div style="min-width:220px;font-family:Inter,sans-serif;">
@@ -453,7 +453,7 @@ export default function MapaAngola({ escolas = [], compact = false, onSelectEsco
                        {escola.tipo === 'pre_escolar' ? 'Pré' :
                         escola.tipo === 'ensino_primario' ? 'Prim' :
                         escola.tipo === 'ensino_medio' ? 'Méd' :
-                        escola.tipo === 'ensino_superior' ? 'Sup' : '—'}
+                        '—'}
                     </span>
                   </button>
                 ))}

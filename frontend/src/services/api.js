@@ -44,7 +44,11 @@ export const authService = {
     return api.post('/auth/upload-foto', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-  }
+  },
+  solicitarVerificacao: (data) => api.post('/auth/solicitar-verificacao', data),
+  verificarCodigo: (data) => api.post('/auth/verificar-codigo', data),
+  esqueciSenha: (data) => api.post('/auth/esqueci-senha', data),
+  redefinirSenha: (data) => api.post('/auth/redefinir-senha', data),
 };
 
 export const dashboardService = {
@@ -60,7 +64,21 @@ export const instituicaoService = {
   update: (id, data) => api.put(`/instituicoes/${id}`, data),
   delete: (id) => api.delete(`/instituicoes/${id}`),
   getEstatisticas: (id) => api.get(`/instituicoes/${id}/estatisticas`),
-  getStats: () => api.get('/instituicoes/stats')
+  getStats: () => api.get('/instituicoes/stats'),
+  uploadImagem: (id, file) => {
+    const formData = new FormData();
+    formData.append('imagem', file);
+    return api.post(`/instituicoes/${id}/imagem`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  uploadLogotipo: (id, file) => {
+    const formData = new FormData();
+    formData.append('logotipo', file);
+    return api.post(`/instituicoes/${id}/logotipo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
 };
 
 export const alunoService = {

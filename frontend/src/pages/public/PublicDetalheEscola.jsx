@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Phone, Mail, MapPin, Users, Building2, GraduationCap,
+  ArrowLeft, Phone, Mail, MapPin, Users, Building2,
   BookOpen, X, Loader2, CheckCircle, Clock, FileText, CreditCard,
   Globe, ChevronDown, ChevronUp, School, Stethoscope
 } from 'lucide-react';
@@ -48,23 +48,8 @@ const DOCUMENTOS_POR_NIVEL = {
       'Pasta de Processo',
       'Certificado de Nascimento',
     ],
-    procedimento: 'Entregar documentos na secretaria académica. Acompanhar prazos de candidatura no portal ou na instituição. Exames de acesso conforme calendário do MESCTI.',
+    procedimento: 'Entregar documentos na secretaria académica. Acompanhar prazos de candidatura no portal ou na instituição.',
     taxas: { inscricao: 2000, emolumentos: 5000 }
-  },
-  ensino_superior: {
-    titulo: 'Documentos para Ensino Superior',
-    documentos: [
-      'Bilhete de Identidade (original e cópia)',
-      'Certificado da 12ª ou 13ª Classe (para Técnicos) com notas discriminadas',
-      'Certificado de Nascimento',
-      '4 Fotografias tipo passe recentes',
-      'Atestado Médico',
-      'Cartão de Vacinação',
-      'Pasta de Processo',
-      'Documento de Candidatura preenchido',
-    ],
-    procedimento: 'Submeter documentos no Portal do Estudante da instituição ou presencialmente na secretaria académica. Acompanhar prazos oficiais de exames de acesso e candidaturas conforme diretrizes do MESCTI.',
-    taxas: { inscricao: 5000, emolumentos: 5000 }
   }
 };
 
@@ -102,10 +87,8 @@ export default function PublicDetalheEscola() {
     'Lunda Norte', 'Lunda Sul', 'Malanje', 'Moxico', 'Namibe', 'Uige', 'Zaire'
   ];
 
-  const isEnsinoSuperior = escola?.tipo === 'ensino_superior';
   const isPreEscolar = escola?.tipo === 'pre_escolar';
   const isEnsinoPrimario = escola?.tipo === 'ensino_primario';
-  const isEnsinoMedio = escola?.tipo === 'ensino_medio';
 
   useEffect(() => {
     async function fetchData() {
@@ -180,7 +163,7 @@ export default function PublicDetalheEscola() {
   };
 
   const getOcupacaoColor = (pct) => pct < 70 ? COLORS.green : pct <= 95 ? COLORS.orange : COLORS.red;
-  const nivelKey = isPreEscolar ? 'pre_escolar' : isEnsinoPrimario ? 'ensino_primario' : isEnsinoMedio ? 'ensino_medio' : 'ensino_superior';
+  const nivelKey = isPreEscolar ? 'pre_escolar' : isEnsinoPrimario ? 'ensino_primario' : 'ensino_medio';
   const docsTemplate = DOCUMENTOS_POR_NIVEL[nivelKey];
 
   if (loading) return <div style={{ minHeight: '100vh', backgroundColor: COLORS.grayBg }}><Loading /></div>;
@@ -195,8 +178,8 @@ export default function PublicDetalheEscola() {
   const ocupacao = getOcupacao();
   const nome = escola.nome || 'Instituição';
   const municipio = escola.municipio_nome || '-';
-  const tipoLabel = isPreEscolar ? 'Ensino Pré-Escolar' : isEnsinoPrimario ? 'Ensino Primário' : isEnsinoMedio ? 'Ensino Médio' : isEnsinoSuperior ? 'Ensino Superior' : escola.tipo || '-';
-  const itens = isEnsinoSuperior ? cursos : turmas;
+  const tipoLabel = isPreEscolar ? 'Ensino Pré-Escolar' : isEnsinoPrimario ? 'Ensino Primário' : 'Ensino Médio';
+  const itens = turmas;
   const documentosFinais = info?.documentos_necessarios ? info.documentos_necessarios.split(',').map(d => d.trim()) : docsTemplate?.documentos || [];
   const procedimentosFinais = info?.procedimentos_inscricao || docsTemplate?.procedimento || '';
   const taxas = docsTemplate?.taxas || { inscricao: 1000, emolumentos: 5000 };
@@ -256,15 +239,14 @@ export default function PublicDetalheEscola() {
         {itens.length > 0 && (
           <div style={{ backgroundColor: COLORS.white, borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: '1.5rem', overflow: 'hidden' }}>
             <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${COLORS.grayBg}`, fontWeight: 600, color: COLORS.darkBlue, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {isEnsinoSuperior ? <GraduationCap size={18} /> : <School size={18} />}
-              {isEnsinoSuperior ? `Cursos Disponíveis (${itens.length})` : `Turmas / Classes (${itens.length})`}
+              <School size={18} />
+              {`Turmas / Classes (${itens.length})`}
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#F9FAFB' }}>
-                    <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontWeight: 600, color: '#374151' }}>{isEnsinoSuperior ? 'Curso' : 'Turma / Classe'}</th>
-                    {isEnsinoSuperior && <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Grau</th>}
+                    <th style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Turma / Classe</th>
                     <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Turno</th>
                     <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontWeight: 600, color: '#374151' }}>Vagas</th>
                     <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontWeight: 600, color: '#374151' }}>Estado</th>
@@ -274,7 +256,6 @@ export default function PublicDetalheEscola() {
                   {itens.map((c, i) => (
                     <tr key={c.id} style={{ borderTop: `1px solid ${COLORS.grayBg}`, backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
                       <td style={{ padding: '0.75rem 1.5rem', fontWeight: 500 }}>{c.nome}</td>
-                      {isEnsinoSuperior && <td style={{ padding: '0.75rem 1rem', textTransform: 'capitalize' }}>{c.grau}</td>}
                       <td style={{ padding: '0.75rem 1rem' }}>{TURNOS_LABEL[c.turno] || c.turno}</td>
                       <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
                         <span style={{ color: c.vagas_disponiveis > 0 ? COLORS.green : COLORS.red, fontWeight: 600 }}>{c.vagas_disponiveis}</span>
@@ -482,7 +463,7 @@ export default function PublicDetalheEscola() {
 
                     {itens.length > 0 && (
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '0.375rem' }}>{isEnsinoSuperior ? 'Curso Pretendido' : 'Turma / Classe Pretendida'}</label>
+                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#374151', marginBottom: '0.375rem' }}>Turma / Classe Pretendida</label>
                         <select value={form.curso_id} onChange={(e) => setForm({ ...form, curso_id: e.target.value })} style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #D1D5DB', fontSize: '0.9375rem', outline: 'none', boxSizing: 'border-box', backgroundColor: COLORS.white }}>
                           <option value="">Selecione...</option>
                           {itens.filter(c => c.estado === 'ativo').map(c => (

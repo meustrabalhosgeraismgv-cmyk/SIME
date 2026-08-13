@@ -17,19 +17,19 @@ Sistema completo para gestão e monitorização do ecossistema escolar de Angola
 - **Relatórios** - Relatório de ocupação e indicadores
 
 ### Perfis de Utilizador
-- **Admin** - Acesso total ao sistema
-- **Ministério** - Visão provincial e relatórios
-- **Diretor** - Gestão da instituição
-- **Professor** - Acesso às suas turmas
-- **Encarregado** - Acesso aos dados dos alunos
+- **Admin** - Acesso total; aprova instituições e Encarregados; envia email de aprovação
+- **Instituição** - Gestão da própria escola, vagas, turmas, imagens e logotipo
+- **Encarregado** - Consulta escolas, vagas e solicita matrículas (conta pendente até aprovação)
 
 ## Tecnologias Utilizadas
 
 ### Backend
 - Node.js + Express
-- SQLite (better-sqlite3)
+- MongoDB (Mongoose/driver oficial) - base de dados principal
 - JWT para autenticação
 - bcryptjs para hashing de senhas
+- Brevo API (email transacional: verificação e recuperação de senha)
+- Multer (upload de imagens de instituições)
 
 ### Frontend
 - React 18
@@ -131,12 +131,14 @@ cd D:\sime_ecossistema_escolar\backend
 npm install
 ```
 
-3. Execute o seed para popular o banco de dados:
+3. Configure o ficheiro `.env` (MongoDB, JWT e chave Brevo).
+
+4. (Opcional) Reset total da base remota com re-seed de demonstração:
 ```bash
-node seed.js
+node reset-db.js
 ```
 
-4. Inicie o servidor:
+5. Inicie o servidor:
 ```bash
 npm start
 ```
@@ -166,17 +168,23 @@ O frontend estará disponível em `http://localhost:5173`
 
 | Utilizador | Senha | Perfil |
 |------------|-------|--------|
-| admin | 123456 | Administrador |
-| ministerio | 123456 | Ministério |
-| diretor.huambo | 123456 | Diretor |
-| professor.joao | 123456 | Professor |
-| encarregado.pedro | 123456 | Encarregado |
+| venancio | Venancio@2026 | Administrador (aprova instituições e Encarregados) |
+| gestor.demonstracao | Demo@2026 | Gestor da Escola de Demonstração SIME |
+
+- A base contém **apenas** a instituição de demonstração "Escola de Demonstração SIME" (Ensino Médio, Huambo), com turmas da 7ª à 12ª Classe e calendário escolar.
+- Tipos de ensino suportados: Pré-Escolar, Primário e Médio (sem Ensino Superior).
+- Novas contas (instituições e Encarregados) exigem validação por email/SMS e ficam **pendentes de aprovação** pelo administrador.
+- Recuperação de palavra-passe disponível no ecrã de login ("Esqueceu a palavra-passe?").
 
 ## API Endpoints
 
 ### Autenticação
-- `POST /api/auth/login` - Login
-- `POST /api/auth/register` - Registar utilizador
+- `POST /api/auth/login` - Login (bloqueia utilizadores não aprovados)
+- `POST /api/auth/register` - Registar utilizador (exige email/telefone verificados)
+- `POST /api/auth/solicitar-verificacao` - Enviar código de verificação (email/SMS)
+- `POST /api/auth/verificar-codigo` - Confirmar código de verificação
+- `POST /api/auth/esqueci-senha` - Enviar código de recuperação de senha
+- `POST /api/auth/redefinir-senha` - Redefinir senha com token
 
 ### Instituições
 - `GET /api/instituicoes` - Listar instituições
@@ -184,6 +192,8 @@ O frontend estará disponível em `http://localhost:5173`
 - `POST /api/instituicoes` - Criar instituição
 - `PUT /api/instituicoes/:id` - Atualizar instituição
 - `DELETE /api/instituicoes/:id` - Eliminar instituição
+- `POST /api/instituicoes/:id/imagem` - Enviar imagem (admin/instituição dona)
+- `POST /api/instituicoes/:id/logotipo` - Enviar logotipo (admin/instituição dona)
 - `GET /api/instituicoes/:id/estatisticas` - Estatísticas da instituição
 
 ### Alunos

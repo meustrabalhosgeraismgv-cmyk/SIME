@@ -1,87 +1,40 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Phone, Mail, Users, ChevronRight, ChevronLeft, Filter, School, GraduationCap, Building2, Star } from 'lucide-react';
+import { Search, MapPin, Phone, Users, ChevronRight, ChevronLeft, Filter, School, GraduationCap, Building2 } from 'lucide-react';
 import Loading from '../components/Loading';
 import StatusChip from '../components/StatusChip';
 import { instituicaoService } from '../services/api';
 
-const SCHOOL_IMAGES = {
-  'ensino_superior': [
-    '/imagens-escolas/isced-1.jpg', '/imagens-escolas/isced-2.jpg', '/imagens-escolas/isced-3.jpg',
-    '/imagens-escolas/isced-4.jpg', '/imagens-escolas/isced-5.jpg', '/imagens-escolas/ujes-1.jpg',
-  ],
-  'ensino_medio': [
-    '/imagens-escolas/isced-6.jpg', '/imagens-escolas/isced-7.jpg', '/imagens-escolas/isced-8.jpg',
-    '/imagens-escolas/isced-9.jpg', '/imagens-escolas/isced-10.jpg', '/imagens-escolas/isced-11.jpg',
-  ],
-  'ensino_primario': [
-    '/imagens-escolas/isced-12.jpg', '/imagens-escolas/isced-13.jpg', '/imagens-escolas/isced-14.jpg',
-    '/imagens-escolas/isced-15.jpg', '/imagens-escolas/isced-16.jpg', '/imagens-escolas/isced-17.jpg',
-  ],
-  'pre_escolar': [
-    '/imagens-escolas/isced-18.jpg', '/imagens-escolas/isced-19.jpg', '/imagens-escolas/isced-20.jpg',
-    '/imagens-escolas/isced-21.jpg', '/imagens-escolas/isced-22.jpg', '/imagens-escolas/isced-23.jpg',
-  ],
-};
+function EscolaBanner({ escola }) {
+  const gradient = escola.tipo === 'pre_escolar'
+    ? 'from-amber-400 to-orange-500'
+    : escola.tipo === 'ensino_primario'
+      ? 'from-primary-500 to-blue-600'
+      : 'from-success-500 to-emerald-600';
 
-function getSchoolImages(escola) {
-  const pool = SCHOOL_IMAGES[escola.tipo] || SCHOOL_IMAGES['ensino_medio'];
-  const hash = escola.nome.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return [pool[hash % pool.length], pool[(hash + 1) % pool.length], pool[(hash + 2) % pool.length]];
-}
+  const tipoLabel = escola.tipo === 'pre_escolar' ? 'Pré-Escolar'
+    : escola.tipo === 'ensino_primario' ? 'Ensino Primário'
+    : escola.tipo === 'ensino_medio' ? 'Ensino Médio' : escola.tipo;
 
-function ImageCarousel({ images }) {
-  const [current, setCurrent] = useState(0);
-  const intervalRef = useRef(null);
-
-  useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      setCurrent(prev => (prev + 1) % images.length);
-    }, 4000);
-    return () => clearInterval(intervalRef.current);
-  }, [images.length]);
-
-  const goTo = (idx) => {
-    setCurrent(idx);
-    clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => setCurrent(p => (p + 1) % images.length), 4000);
-  };
-
-  const prev = (e) => {
-    e.stopPropagation();
-    goTo((current - 1 + images.length) % images.length);
-  };
-
-  const next = (e) => {
-    e.stopPropagation();
-    goTo((current + 1) % images.length);
-  };
+  if (escola.imagem_url) {
+    return (
+      <div className="relative -mx-6 -mt-6 mb-4 h-44 overflow-hidden">
+        <img src={escola.imagem_url} alt={escola.nome} className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        <div className="absolute bottom-3 left-4">
+          <span className="status-chip bg-white/90 text-gray-800 text-xs">{tipoLabel}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative -mx-6 -mt-6 mb-4 h-44 overflow-hidden group">
-      {images.map((img, idx) => (
-        <img
-          key={idx}
-          src={img}
-          alt=""
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
-            idx === current ? 'opacity-100' : 'opacity-0'
-          }`}
-        />
-      ))}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-      <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
-        <ChevronLeft className="w-4 h-4" />
-      </button>
-      <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
-        <ChevronRight className="w-4 h-4" />
-      </button>
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-        {images.map((_, idx) => (
-          <button key={idx} onClick={(e) => { e.stopPropagation(); goTo(idx); }}
-            className={`w-1.5 h-1.5 rounded-full transition-all ${idx === current ? 'bg-white w-4' : 'bg-white/50'}`} />
-        ))}
+    <div className={`relative -mx-6 -mt-6 mb-4 h-44 overflow-hidden bg-gradient-to-br ${gradient}`}>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-white/90 gap-2">
+        <Building2 className="w-10 h-10" />
+        <span className="font-semibold text-sm uppercase tracking-wider">{tipoLabel}</span>
       </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
     </div>
   );
 }
@@ -123,7 +76,6 @@ const PesquisarEscolas = () => {
     pre_escolar: 'Ensino Pré-Escolar',
     ensino_primario: 'Ensino Primário',
     ensino_medio: 'Ensino Médio',
-    ensino_superior: 'Ensino Superior'
   }[tipo] || tipo);
 
   const getOcupacaoPercent = (vagasTotais, vagasDisponiveis) => {
@@ -177,7 +129,6 @@ const PesquisarEscolas = () => {
               <option value="pre_escolar">Pré-Escolar</option>
               <option value="ensino_primario">Primário</option>
               <option value="ensino_medio">Médio</option>
-              <option value="ensino_superior">Superior</option>
             </select>
             <select value={statusVagas} onChange={(e) => setStatusVagas(e.target.value)} className="select-field w-auto min-w-[160px]">
               <option value="">Todas as vagas</option>
@@ -200,7 +151,7 @@ const PesquisarEscolas = () => {
               return (
                 <div key={escola.id} className="card card-hover cursor-pointer group"
                   onClick={() => navigate('/app/instituicoes/' + escola.id)}>
-                  <ImageCarousel images={getSchoolImages(escola)} />
+                  <EscolaBanner escola={escola} />
 
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -225,7 +176,7 @@ const PesquisarEscolas = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                       <Users className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span className="truncate">{escola.diretor}</span>
+                      <span className="truncate">{escola.responsavel || escola.diretor || '—'}</span>
                     </div>
                     {escola.telefone && (
                       <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">

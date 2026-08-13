@@ -67,7 +67,6 @@ const DetalhesInstituicao = () => {
       pre_escolar: 'Ensino Pré-Escolar',
       ensino_primario: 'Ensino Primário',
       ensino_medio: 'Ensino Médio',
-      ensino_superior: 'Ensino Superior',
     };
     return labels[tipo] || tipo;
   };
@@ -77,7 +76,6 @@ const DetalhesInstituicao = () => {
       pre_escolar: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
       ensino_primario: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
       ensino_medio: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-      ensino_superior: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
     };
     return colors[tipo] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
   };

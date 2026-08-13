@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, ArrowRight, ArrowLeft, Building2, Shield, Users, CheckCircle, AlertCircle } from 'lucide-react';
-import { LogoImage } from '../components/Logo';
+import { Eye, EyeOff, ArrowRight, ArrowLeft, Building2, Shield, Users, CheckCircle, AlertCircle, Send, KeyRound, Mail, Smartphone } from 'lucide-react';
+import Logo, { LogoWhite } from '../components/Logo';
+import { authService } from '../services/api';
 
 const PERFIS = [
   { value: 'instituicao', label: 'Instituição de Ensino', desc: 'Registar a minha instituição e gerir vagas, alunos, professores e comunicados', icon: Building2 },
@@ -23,6 +23,10 @@ const Cadastro = () => {
     instituicao_nome: '',
     instituicao_municipio: '',
     instituicao_tipo: 'ensino_primario',
+  });
+  const [verificacao, setVerificacao] = useState({
+    email: { enviado: false, verificado: false, codigo: '' },
+    telefone: { enviado: false, verificado: false, codigo: '' },
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -48,6 +52,60 @@ const Cadastro = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (e.target.name === 'email' || e.target.name === 'telefone') {
+      setVerificacao((v) => ({
+        ...v,
+        [e.target.name]: { enviado: false, verificado: false, codigo: '' }
+      }));
+    }
+  };
+
+  const enviarCodigo = async (canal) => {
+    setError('');
+    setSuccess('');
+    const valor = canal === 'email' ? formData.email : formData.telefone;
+    if (!valor) {
+      setError(canal === 'email' ? 'Indique o seu email' : 'Indique o seu telefone');
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = canal === 'email'
+        ? { email: formData.email, tipo: 'cadastro' }
+        : { telefone: formData.telefone, tipo: 'cadastro' };
+      const res = await authService.solicitarVerificacao(payload);
+      setVerificacao((v) => ({ ...v, [canal]: { ...v[canal], enviado: true, verificado: false } }));
+      setSuccess(res.data?.message || `Código enviado por ${canal === 'email' ? 'email' : 'SMS'}.`);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao enviar o código de verificação.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmarCodigo = async (canal) => {
+    setError('');
+    setSuccess('');
+    const codigo = verificacao[canal].codigo;
+    if (!codigo) {
+      setError('Introduza o código recebido.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        codigo,
+        tipo: 'cadastro',
+        ...(canal === 'email' ? { email: formData.email } : { telefone: formData.telefone })
+      };
+      const res = await authService.verificarCodigo(payload);
+      setVerificacao((v) => ({ ...v, [canal]: { ...v[canal], verificado: true } }));
+      setSuccess(canal === 'email' ? 'Email verificado com sucesso.' : 'Telefone verificado com sucesso.');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Código inválido ou expirado.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -62,6 +120,19 @@ const Cadastro = () => {
 
     if (formData.password.length < 6) {
       setError('A palavra-passe deve ter pelo menos 6 caracteres');
+      return;
+    }
+
+    if (formData.email && !verificacao.email.verificado) {
+      setError('Verifique o seu email com o código enviado antes de criar a conta.');
+      return;
+    }
+    if (formData.telefone && !verificacao.telefone.verificado) {
+      setError('Verifique o seu telefone com o código SMS antes de criar a conta.');
+      return;
+    }
+    if (!formData.email && !formData.telefone) {
+      setError('Indique pelo menos o email ou o telefone para validação da conta.');
       return;
     }
 
@@ -94,8 +165,8 @@ const Cadastro = () => {
         }
         setTimeout(() => navigate('/login'), 3000);
       } else {
-        const { login } = await import('../contexts/AuthContext');
-        navigate('/login');
+        setSuccess('Conta criada com sucesso! Aguarde a aprovação do administrador antes de entrar no sistema.');
+        setTimeout(() => navigate('/login'), 3000);
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao criar conta. Tente novamente.');
@@ -120,7 +191,7 @@ const Cadastro = () => {
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
           <div className="mb-8">
             <div className="mb-6">
-              <img src="/Logotipo.png" alt="SIME" className="h-16 w-auto" />
+              <LogoWhite />
             </div>
             <h1 className="text-5xl font-extrabold tracking-tight mb-3">
               Criar Conta
@@ -169,7 +240,9 @@ const Cadastro = () => {
           </Link>
 
           <div className="lg:hidden text-center mb-8">
-            <LogoImage size="large" />
+            <div className="flex justify-center">
+              <Logo size="large" />
+            </div>
           </div>
 
           <div className="mb-8">
@@ -329,7 +402,6 @@ const Cadastro = () => {
                           <option value="pre_escolar">Ensino Pré-Escolar</option>
                           <option value="ensino_primario">Ensino Primário</option>
                           <option value="ensino_medio">Ensino Médio</option>
-                          <option value="ensino_superior">Ensino Superior</option>
                         </select>
                       </div>
 
@@ -370,27 +442,120 @@ const Cadastro = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0061a4]/20 focus:border-[#0061a4] transition-all"
-                  placeholder="email@exemplo.com"
-                />
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Email <span className="text-xs text-gray-400 font-normal">(validação obrigatória)</span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0061a4]/20 focus:border-[#0061a4] transition-all"
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+                  {!verificacao.email.verificado ? (
+                    <button
+                      type="button"
+                      onClick={() => enviarCodigo('email')}
+                      disabled={loading || !formData.email}
+                      className="px-4 py-3 text-sm font-semibold text-[#0061a4] border border-[#0061a4] rounded-lg hover:bg-[#0061a4]/5 transition-colors disabled:opacity-40 flex items-center gap-1.5 flex-shrink-0"
+                    >
+                      <Send className="w-4 h-4" />
+                      {verificacao.email.enviado ? 'Reenviar' : 'Enviar código'}
+                    </button>
+                  ) : (
+                    <span className="px-4 py-3 text-sm font-semibold text-green-600 bg-green-50 border border-green-200 rounded-lg flex items-center gap-1.5 flex-shrink-0">
+                      <CheckCircle className="w-4 h-4" /> Verificado
+                    </span>
+                  )}
+                </div>
+                {verificacao.email.enviado && !verificacao.email.verificado && (
+                  <div className="flex gap-2 mt-2">
+                    <div className="relative flex-1">
+                      <KeyRound className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={verificacao.email.codigo}
+                        onChange={(e) => setVerificacao((v) => ({ ...v, email: { ...v.email, codigo: e.target.value } }))}
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm tracking-widest font-bold text-center focus:outline-none focus:ring-2 focus:ring-[#0061a4]/20 focus:border-[#0061a4] transition-all"
+                        placeholder="Código (6 dígitos)"
+                        maxLength={6}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => confirmarCodigo('email')}
+                      disabled={loading}
+                      className="px-4 py-2.5 text-sm font-semibold text-white bg-[#0061a4] rounded-lg hover:bg-[#00497d] transition-colors disabled:opacity-40 flex items-center gap-1.5 flex-shrink-0"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Confirmar
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Telefone</label>
-                <input
-                  type="tel"
-                  name="telefone"
-                  value={formData.telefone}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0061a4]/20 focus:border-[#0061a4] transition-all"
-                  placeholder="+244 9XX XXX XXX"
-                />
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Telefone <span className="text-xs text-gray-400 font-normal">(validação por SMS)</span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Smartphone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="tel"
+                      name="telefone"
+                      value={formData.telefone}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0061a4]/20 focus:border-[#0061a4] transition-all"
+                      placeholder="+244 9XX XXX XXX"
+                    />
+                  </div>
+                  {!verificacao.telefone.verificado ? (
+                    <button
+                      type="button"
+                      onClick={() => enviarCodigo('telefone')}
+                      disabled={loading || !formData.telefone}
+                      className="px-4 py-3 text-sm font-semibold text-[#0061a4] border border-[#0061a4] rounded-lg hover:bg-[#0061a4]/5 transition-colors disabled:opacity-40 flex items-center gap-1.5 flex-shrink-0"
+                    >
+                      <Send className="w-4 h-4" />
+                      {verificacao.telefone.enviado ? 'Reenviar' : 'Enviar código'}
+                    </button>
+                  ) : (
+                    <span className="px-4 py-3 text-sm font-semibold text-green-600 bg-green-50 border border-green-200 rounded-lg flex items-center gap-1.5 flex-shrink-0">
+                      <CheckCircle className="w-4 h-4" /> Verificado
+                    </span>
+                  )}
+                </div>
+                {verificacao.telefone.enviado && !verificacao.telefone.verificado && (
+                  <div className="flex gap-2 mt-2">
+                    <div className="relative flex-1">
+                      <KeyRound className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={verificacao.telefone.codigo}
+                        onChange={(e) => setVerificacao((v) => ({ ...v, telefone: { ...v.telefone, codigo: e.target.value } }))}
+                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm tracking-widest font-bold text-center focus:outline-none focus:ring-2 focus:ring-[#0061a4]/20 focus:border-[#0061a4] transition-all"
+                        placeholder="Código (6 dígitos)"
+                        maxLength={6}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => confirmarCodigo('telefone')}
+                      disabled={loading}
+                      className="px-4 py-2.5 text-sm font-semibold text-white bg-[#0061a4] rounded-lg hover:bg-[#00497d] transition-colors disabled:opacity-40 flex items-center gap-1.5 flex-shrink-0"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Confirmar
+                    </button>
+                  </div>
+                )}
+                <p className="text-xs text-gray-400 mt-1">
+                  Enviaremos um código de 6 dígitos por email e/ou SMS para validar a sua conta.
+                </p>
               </div>
 
               <div>

@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
+const { normalizarTelefone } = require('./verificacaoController');
 
 const login = async (req, res) => {
   try {
@@ -14,8 +15,8 @@ const login = async (req, res) => {
     const usuario = await db.collection('usuarios').findOne({ username });
     if (!usuario) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    if (!usuario.aprovado && usuario.perfil === 'instituicao') {
-      return res.status(403).json({ error: 'A sua conta de instituição ainda não foi aprovada pelo administrador.' });
+    if (!usuario.aprovado) {
+      return res.status(403).json({ error: 'A sua conta ainda não foi aprovada pelo administrador. Aguarde a aprovação.' });
     }
 
     const validPassword = await bcrypt.compare(password, usuario.password);
@@ -56,6 +57,20 @@ const register = async (req, res) => {
     const db = getDB();
     const existingUser = await db.collection('usuarios').findOne({ username });
     if (existingUser) return res.status(400).json({ error: 'Nome de utilizador já existe' });
+
+    if (!email && !telefone) {
+      return res.status(400).json({ error: 'Indique o email ou o telefone para validação da conta' });
+    }
+
+    if (email) {
+      const vEmail = await db.collection('verificacoes_confirmadas').findOne({ email, tipo: 'cadastro', verificado: true });
+      if (!vEmail) return res.status(400).json({ error: 'O email ainda não foi verificado. Envie e confirme o código de verificação.' });
+    }
+    if (telefone) {
+      const telNorm = normalizarTelefone(telefone);
+      const vTel = await db.collection('verificacoes_confirmadas').findOne({ telefone: telNorm, tipo: 'cadastro', verificado: true });
+      if (!vTel) return res.status(400).json({ error: 'O telefone ainda não foi verificado. Envie e confirme o código SMS.' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -100,10 +115,9 @@ const register = async (req, res) => {
       const result = await db.collection('usuarios').insertOne({
         username, password: hashedPassword, perfil, nome: nome || null, email: email || null,
         telefone: telefone || null, is_gestor: false, entidade_id: null, entidade_tipo: null,
-        aprovado: true, foto: null, created_at: new Date()
+        aprovado: false, foto: null, created_at: new Date()
       });
-      const token = jwt.sign({ id: result.insertedId.toString(), username, perfil, is_gestor: false, entidade_id: null, entidade_tipo: null }, process.env.JWT_SECRET, { expiresIn: '24h' });
-      res.status(201).json({ message: 'Conta criada com sucesso', token, user: { id: result.insertedId.toString(), username, perfil } });
+      res.status(201).json({ message: 'Conta criada com sucesso. Aguarde a aprovação do administrador antes de aceder ao sistema.', id: result.insertedId.toString() });
     } else if (perfil === 'admin') {
       const adminCount = await db.collection('usuarios').countDocuments({ perfil: 'admin' });
       if (adminCount > 0) return res.status(400).json({ error: 'Já existe um administrador no sistema' });

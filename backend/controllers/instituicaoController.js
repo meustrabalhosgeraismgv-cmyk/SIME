@@ -17,7 +17,13 @@ const getInstituicoes = async (req, res) => {
       { $match: typeMatch },
       {
         $addFields: {
-          municipio_id_obj: { $toObjectId: '$municipio_id' },
+          municipio_id_obj: {
+            $cond: [
+              { $regexMatch: { input: { $ifNull: ['$municipio_id', ''] }, regex: '^[a-f0-9]{24}$', options: 'i' } },
+              { $toObjectId: '$municipio_id' },
+              null
+            ]
+          },
           latitude: { $ifNull: ['$latitude', '$lat'] },
           longitude: { $ifNull: ['$longitude', '$lng'] },
           vagas_totais: { $ifNull: ['$vagas_totais', '$vt'] },
@@ -92,7 +98,13 @@ const getInstituicaoById = async (req, res) => {
       { $match: { _id: new ObjectId(id) } },
       {
         $addFields: {
-          municipio_id_obj: { $toObjectId: '$municipio_id' },
+          municipio_id_obj: {
+            $cond: [
+              { $regexMatch: { input: { $ifNull: ['$municipio_id', ''] }, regex: '^[a-f0-9]{24}$', options: 'i' } },
+              { $toObjectId: '$municipio_id' },
+              null
+            ]
+          },
           latitude: { $ifNull: ['$latitude', '$lat'] },
           longitude: { $ifNull: ['$longitude', '$lng'] },
           vagas_totais: { $ifNull: ['$vagas_totais', '$vt'] },
