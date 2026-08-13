@@ -102,9 +102,7 @@ export default function PublicLayout() {
               <nav className="flex flex-col gap-3">
                 <a href="https://med.gov.ao/" target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-3 text-sm text-gray-400 hover:text-white transition-colors group">
-                  <div className="w-8 h-8 rounded bg-[#0061a4] flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-extrabold text-xs">MED</span>
-                  </div>
+                  <img src="/logos/med.png" alt="MED" className="w-8 h-8 rounded bg-white p-0.5" />
                   <div>
                     <p className="font-medium group-hover:text-white">Ministério da Educação</p>
                     <p className="text-xs text-gray-500">med.gov.ao</p>
@@ -164,16 +162,14 @@ export default function PublicLayout() {
             <div className="flex items-center gap-4">
               <a href="https://med.gov.ao/" target="_blank" rel="noopener noreferrer"
                 className="text-gray-500 hover:text-white transition-colors" title="Ministério da Educação">
-                <span className="w-6 h-6 rounded bg-[#0061a4] flex items-center justify-center opacity-60 hover:opacity-100">
-                  <span className="text-white font-bold text-[9px]">MED</span>
-                </span>
+                <img src="/logos/med.png" alt="MED" className="w-6 h-6 rounded bg-white p-0.5 opacity-50 hover:opacity-100" />
               </a>
             </div>
           </div>
           <div className="border-t border-gray-800 mt-4 pt-4 flex items-center justify-center gap-2">
             <span className="text-xs text-gray-600">Desenvolvido por</span>
-            <a href="https://andiotechinovacoes.netlify.app/" target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-gray-400 hover:text-white transition-colors">
-              AnDioTech Inovações
+            <a href="https://andiotechinovacoes.netlify.app/" target="_blank" rel="noopener noreferrer">
+              <img src="/logos/AndioTech.png" alt="AnDioTech Inovações" className="h-6 hover:opacity-80 transition-opacity" />
             </a>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowRight, ArrowLeft, Building2, Shield, Users, CheckCircle, AlertCircle, Send, KeyRound, Mail, Smartphone } from 'lucide-react';
-import Logo, { LogoWhite } from '../components/Logo';
+import Logo from '../components/Logo';
 import { authService } from '../services/api';
 
 const PERFIS = [
@@ -191,7 +191,7 @@ const Cadastro = () => {
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
           <div className="mb-8">
             <div className="mb-6">
-              <LogoWhite />
+              <img src="/Logotipo.png" alt="SIME" className="h-16 w-auto" />
             </div>
             <h1 className="text-5xl font-extrabold tracking-tight mb-3">
               Criar Conta

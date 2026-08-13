@@ -21,8 +21,8 @@ const Layout = () => {
         </main>
         <footer className="border-t border-gray-200 dark:border-navy-800 py-3 px-6 flex items-center justify-center gap-2">
           <span className="text-xs text-gray-400 dark:text-gray-600">Desenvolvido por</span>
-          <a href="https://andiotechinovacoes.netlify.app/" target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-primary-500 transition-colors">
-            AnDioTech Inovações
+          <a href="https://andiotechinovacoes.netlify.app/" target="_blank" rel="noopener noreferrer">
+            <img src="/logos/AndioTech.png" alt="AnDioTech Inovações" className="h-5 hover:opacity-80 transition-opacity" />
           </a>
         </footer>
       </div>
