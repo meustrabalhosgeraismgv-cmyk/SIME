@@ -2,7 +2,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
-const { normalizarTelefone } = require('./verificacaoController');
 
 const login = async (req, res) => {
   try {
@@ -58,19 +57,12 @@ const register = async (req, res) => {
     const existingUser = await db.collection('usuarios').findOne({ username });
     if (existingUser) return res.status(400).json({ error: 'Nome de utilizador já existe' });
 
-    if (!email && !telefone) {
-      return res.status(400).json({ error: 'Indique o email ou o telefone para validação da conta' });
+    if (!email) {
+      return res.status(400).json({ error: 'Indique o email para validação da conta' });
     }
 
-    if (email) {
-      const vEmail = await db.collection('verificacoes_confirmadas').findOne({ email, tipo: 'cadastro', verificado: true });
-      if (!vEmail) return res.status(400).json({ error: 'O email ainda não foi verificado. Envie e confirme o código de verificação.' });
-    }
-    if (telefone) {
-      const telNorm = normalizarTelefone(telefone);
-      const vTel = await db.collection('verificacoes_confirmadas').findOne({ telefone: telNorm, tipo: 'cadastro', verificado: true });
-      if (!vTel) return res.status(400).json({ error: 'O telefone ainda não foi verificado. Envie e confirme o código SMS.' });
-    }
+    const vEmail = await db.collection('verificacoes_confirmadas').findOne({ email, tipo: 'cadastro', verificado: true });
+    if (!vEmail) return res.status(400).json({ error: 'O email ainda não foi verificado. Envie e confirme o código de verificação.' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
