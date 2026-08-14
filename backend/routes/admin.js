@@ -33,11 +33,12 @@ router.get('/users', authenticateToken, authorizeRole('admin'), async (req, res)
     const total = await db.collection('usuarios').countDocuments(filter);
 
     const enrichedUsers = await Promise.all(users.map(async (u) => {
+      const base = { ...u, id: u._id.toString() };
       if (u.entidade_tipo === 'instituicao' && u.entidade_id) {
         const inst = await db.collection('instituicoes').findOne({ _id: new ObjectId(u.entidade_id) });
-        return { ...u, instituicao_nome: inst ? inst.nome : null };
+        return { ...base, instituicao_nome: inst ? inst.nome : null };
       }
-      return { ...u, instituicao_nome: null };
+      return { ...base, instituicao_nome: null };
     }));
 
     res.json({
@@ -124,7 +125,7 @@ router.get('/stats', authenticateToken, authorizeRole('admin'), async (req, res)
   try {
     const db = getDB();
     const totalUsers = await db.collection('usuarios').countDocuments();
-    const pendingApprovals = await db.collection('usuarios').countDocuments({ aprovado: 0 });
+    const pendingApprovals = await db.collection('usuarios').countDocuments({ aprovado: false });
 
     const usersByProfile = await db.collection('usuarios').aggregate([
       { $group: { _id: '$perfil', total: { $sum: 1 } } },
