@@ -2,6 +2,8 @@ import api from './api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
+const API_ORIGIN = API_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
+
 export const chatService = {
   getConversas: () => api.get('/chat/conversas'),
   createConversa: (data) => api.post('/chat/conversas', data),
@@ -19,6 +21,6 @@ export const chatService = {
   urlFicheiro: (url) => {
     if (!url) return url;
     if (url.startsWith('http')) return url;
-    return API_BASE + url;
+    return API_ORIGIN + url;
   },
 };

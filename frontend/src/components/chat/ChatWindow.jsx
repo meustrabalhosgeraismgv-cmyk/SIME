@@ -151,6 +151,11 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
 
   const startRecording = async () => {
     if (!conversaId) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      console.error('Áudio não suportado neste browser');
+      setRecording(false);
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const rec = new MediaRecorder(stream);
@@ -171,6 +176,7 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
     } catch (err) {
       console.error('Erro ao gravar áudio:', err);
       setRecording(false);
+      alert('Não foi possível aceder ao microfone. Verifica as permissões do browser e tenta novamente.');
     }
   };
 
