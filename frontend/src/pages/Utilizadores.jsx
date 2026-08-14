@@ -196,7 +196,7 @@ const Utilizadores = () => {
                         {user.instituicao_nome || '-'}
                       </td>
                       <td>
-                        {user.aprovado === 1 ? (
+                        {user.aprovado ? (
                           <span className="status-chip bg-success-50 text-success-600 dark:bg-success-500/10 dark:text-success-400 text-[10px]">
                             <CheckCircle className="w-3 h-3" /> Activo
                           </span>
@@ -208,7 +208,7 @@ const Utilizadores = () => {
                       </td>
                       <td>
                         <div className="flex items-center justify-end gap-1">
-                          {user.aprovado === 0 && (
+                          {!user.aprovado && (
                             <>
                               <button
                                 onClick={() => handleAprovar(user.id, user.username)}

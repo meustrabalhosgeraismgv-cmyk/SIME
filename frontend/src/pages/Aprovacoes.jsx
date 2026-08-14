@@ -55,8 +55,8 @@ const Aprovacoes = () => {
     }
   };
 
-  const pendentes = usuarios.filter(u => u.aprovado === 0);
-  const aprovados = usuarios.filter(u => u.aprovado === 1);
+  const pendentes = usuarios.filter(u => !u.aprovado);
+  const aprovados = usuarios.filter(u => u.aprovado);
 
   if (loading && !usuarios.length) return <Loading text="A carregar aprovações..." />;
 
