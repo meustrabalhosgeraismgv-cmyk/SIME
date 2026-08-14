@@ -5,15 +5,6 @@ const { getDB } = require('../config/mongodb');
 const { authenticateToken } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
-router.post('/upload', authenticateToken, upload.chat.single('ficheiro'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado' });
-    res.json({ url: `/uploads/chat/${req.file.filename}`, message: 'Ficheiro enviado' });
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao enviar ficheiro' });
-  }
-});
-
 const canCreateGroup = (perfil) => perfil === 'admin' || perfil === 'instituicao';
 const canCreatePrivate = (perfil) => ['admin', 'instituicao', 'encarregado'].includes(perfil);
 
