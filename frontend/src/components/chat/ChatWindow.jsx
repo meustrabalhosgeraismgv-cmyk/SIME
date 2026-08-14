@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Paperclip, Image as ImageIcon, ArrowLeft, Users, Settings, MoreVertical } from 'lucide-react';
+import { Send, Paperclip, Mic, Square, Loader, ArrowLeft, Users, Settings } from 'lucide-react';
 import { chatService } from '../../services/chatService';
 import { getSocket, joinConversa, leaveConversa, sendMessage, emitTyping, emitStopTyping, markRead, onNewMessage, onUserTyping, onUserStopTyping } from '../../services/socketClient';
 import MessageBubble from './MessageBubble';
@@ -11,9 +11,14 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
+  const [enviandoAnexo, setEnviandoAnexo] = useState(false);
+  const [recording, setRecording] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const recorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -90,32 +95,104 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  const handleSend = async (e) => {
-    e?.preventDefault();
-    if (!input.trim() || sending) return;
+  const addMessage = (m) => {
+    if (!m) return;
+    const key = m.id || m._id;
+    setMessages(prev => prev.some(x => (x.id || x._id) === key) ? prev : [...prev, m]);
+    if (window.__chatNewMessage) window.__chatNewMessage(m);
+  };
+
+  const enviar = async ({ conteudo, tipo = 'texto', ficheiro_url = null }) => {
     setSending(true);
-    const text = input.trim();
-    setInput('');
-
-    const addMessage = (m) => {
-      if (!m) return;
-      const key = m.id || m._id;
-      setMessages(prev => prev.some(x => (x.id || x._id) === key) ? prev : [...prev, m]);
-      if (window.__chatNewMessage) window.__chatNewMessage(m);
-    };
-
     try {
-      const resp = await sendMessage({ conversaId, conteudo: text });
+      const resp = await sendMessage({ conversaId, conteudo, tipo, ficheiro_url });
       addMessage(resp?.data || resp);
     } catch (err) {
       try {
-        const res = await chatService.enviarMensagem(conversaId, { conteudo: text });
+        const res = await chatService.enviarMensagem(conversaId, { conteudo, tipo, ficheiro_url });
         addMessage(res.data);
       } catch (e2) {
         console.error('Erro ao enviar mensagem:', e2);
       }
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleSend = async (e) => {
+    e?.preventDefault();
+    if (!input.trim() || sending) return;
+    const text = input.trim();
+    setInput('');
+    await enviar({ conteudo: text });
+  };
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !conversaId) return;
+    setEnviandoAnexo(true);
+    try {
+      const res = await chatService.uploadFicheiro(file);
+      const isImagem = file.type.startsWith('image/');
+      const isAudio = file.type.startsWith('audio/');
+      const conteudo = isImagem ? (file.name || 'Imagem') : (isAudio ? (file.name || 'Áudio') : (file.name || 'Ficheiro'));
+      await enviar({
+        conteudo,
+        tipo: isImagem ? 'imagem' : isAudio ? 'audio' : 'ficheiro',
+        ficheiro_url: res.data.url
+      });
+    } catch (err) {
+      console.error('Erro ao enviar ficheiro:', err);
+    } finally {
+      setEnviandoAnexo(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const startRecording = async () => {
+    if (!conversaId) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      rec.ondataavailable = (ev) => {
+        if (ev.data.size > 0) audioChunksRef.current.push(ev.data);
+      };
+      rec.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: rec.mimeType || 'audio/webm' });
+        audioChunksRef.current = [];
+        setRecording(false);
+        await handleAudioBlob(blob);
+      };
+      recorderRef.current = rec;
+      rec.start();
+      setRecording(true);
+    } catch (err) {
+      console.error('Erro ao gravar áudio:', err);
+      setRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      recorderRef.current.stop();
+    } else {
+      setRecording(false);
+    }
+  };
+
+  const handleAudioBlob = async (blob) => {
+    const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+    const file = new File([blob], `audio_${Date.now()}.${ext}`, { type: blob.type || 'audio/webm' });
+    setEnviandoAnexo(true);
+    try {
+      const res = await chatService.uploadFicheiro(file);
+      await enviar({ conteudo: 'Mensagem de áudio', tipo: 'audio', ficheiro_url: res.data.url });
+    } catch (err) {
+      console.error('Erro ao enviar áudio:', err);
+    } finally {
+      setEnviandoAnexo(false);
     }
   };
 
@@ -212,17 +289,57 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
       {/* Input */}
       <form onSubmit={handleSend} className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 dark:border-navy-700 bg-white dark:bg-navy-900">
         <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={enviandoAnexo || recording}
+          title="Enviar ficheiro"
+          className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-primary-500 rounded-xl hover:bg-gray-100 dark:hover:bg-navy-800 transition-colors disabled:opacity-50"
+        >
+          {enviandoAnexo ? <Loader className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
+        </button>
+        {recording ? (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30">
+            <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+            <span className="text-xs font-semibold text-red-600 dark:text-red-400">A gravar...</span>
+            <button
+              type="button"
+              onClick={stopRecording}
+              title="Parar gravação"
+              className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              <Square className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={startRecording}
+            disabled={enviandoAnexo || sending}
+            title="Gravar mensagem de áudio"
+            className="p-2.5 text-gray-500 dark:text-gray-400 hover:text-primary-500 rounded-xl hover:bg-gray-100 dark:hover:bg-navy-800 transition-colors disabled:opacity-50"
+          >
+            <Mic className="w-5 h-5" />
+          </button>
+        )}
+        <input
           ref={inputRef}
           type="text"
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
+          disabled={recording}
           placeholder="Escreva uma mensagem..."
-          className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-navy-800 border border-gray-200 dark:border-navy-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+          className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-navy-800 border border-gray-200 dark:border-navy-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 disabled:opacity-50"
         />
         <button
           type="submit"
-          disabled={!input.trim() || sending}
+          disabled={!input.trim() || sending || recording}
           className="p-2.5 bg-primary-500 text-white rounded-xl hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Send className="w-4 h-4" />

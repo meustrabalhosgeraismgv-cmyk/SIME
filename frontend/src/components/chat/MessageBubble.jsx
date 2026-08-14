@@ -1,3 +1,6 @@
+import { FileIcon, Download } from 'lucide-react';
+import { chatService } from '../../services/chatService';
+
 export default function MessageBubble({ message, isOwn, showSender }) {
   const isSistema = message.tipo === 'sistema';
 
@@ -10,6 +13,44 @@ export default function MessageBubble({ message, isOwn, showSender }) {
       </div>
     );
   }
+
+  const conteudoRender = () => {
+    const url = chatService.urlFicheiro(message.ficheiro_url);
+    if (message.tipo === 'imagem' && message.ficheiro_url) {
+      return <img src={url} alt="Imagem" className="max-w-[240px] rounded-lg" />;
+    }
+    if (message.tipo === 'audio' && message.ficheiro_url) {
+      return (
+        <div className="min-w-[220px]">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[11px] font-medium opacity-90">Áudio</span>
+          </div>
+          <audio controls preload="metadata" src={url} className="w-full h-10" />
+        </div>
+      );
+    }
+    if (message.tipo === 'ficheiro' && message.ficheiro_url) {
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 py-1"
+        >
+          <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-navy-700 flex items-center justify-center flex-shrink-0">
+            <FileIcon className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate max-w-[200px]">{message.conteudo || 'Ficheiro'}</p>
+            <span className="text-[11px] opacity-80 flex items-center gap-1">
+              <Download className="w-3 h-3" /> Transferir
+            </span>
+          </div>
+        </a>
+      );
+    }
+    return message.conteudo;
+  };
 
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
@@ -36,11 +77,7 @@ export default function MessageBubble({ message, isOwn, showSender }) {
               : 'bg-white dark:bg-navy-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-md shadow-sm border border-gray-100 dark:border-navy-700'
           }`}
         >
-          {message.tipo === 'imagem' && message.ficheiro_url ? (
-            <img src={message.ficheiro_url} alt="Imagem" className="max-w-[240px] rounded-lg" />
-          ) : (
-            message.conteudo
-          )}
+          {conteudoRender()}
         </div>
         <div className={`flex items-center gap-1 mt-0.5 px-1 ${isOwn ? 'justify-end' : ''}`}>
           <span className="text-[10px] text-gray-400 dark:text-gray-500">

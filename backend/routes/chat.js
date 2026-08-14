@@ -3,6 +3,7 @@ const router = express.Router();
 const { ObjectId } = require('mongodb');
 const { getDB } = require('../config/mongodb');
 const { authenticateToken } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 const canCreateGroup = (perfil) => perfil === 'admin' || perfil === 'instituicao';
 const canCreatePrivate = (perfil) => ['admin', 'instituicao', 'encarregado'].includes(perfil);
@@ -358,6 +359,23 @@ router.get('/utilizadores', authenticateToken, async (req, res) => {
     res.json({ data: users.map(u => ({ ...u, id: toStr(u._id) })) });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao listar utilizadores' });
+  }
+});
+
+router.post('/upload', authenticateToken, upload.chat.single('ficheiro'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Nenhum ficheiro enviado' });
+    }
+    res.status(201).json({
+      url: `/uploads/chat/${req.file.filename}`,
+      nome: req.file.originalname,
+      tipo: req.file.mimetype,
+      tamanho: req.file.size
+    });
+  } catch (error) {
+    console.error('Erro no upload de chat:', error);
+    res.status(500).json({ error: 'Erro ao enviar ficheiro' });
   }
 });
 

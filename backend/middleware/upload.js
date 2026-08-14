@@ -2,7 +2,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-function criarUpload(pasta) {
+function criarUpload(pasta, opcoes = {}) {
   const uploadsDir = path.join(__dirname, '..', 'uploads', pasta);
 
   if (!fs.existsSync(uploadsDir)) {
@@ -22,11 +22,15 @@ function criarUpload(pasta) {
   });
 
   const fileFilter = (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
+    if (opcoes.todosTipos) {
       cb(null, true);
     } else {
-      cb(new Error('Apenas ficheiros JPG, PNG e WebP são aceites'), false);
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Apenas ficheiros JPG, PNG e WebP são aceites'), false);
+      }
     }
   };
 
@@ -34,12 +38,13 @@ function criarUpload(pasta) {
     storage,
     fileFilter,
     limits: {
-      fileSize: 5 * 1024 * 1024
+      fileSize: opcoes.maxSize || 5 * 1024 * 1024
     }
   });
 }
 
 const upload = criarUpload('fotos');
 upload.uploadInstituicoes = criarUpload('instituicoes');
+upload.chat = criarUpload('chat', { todosTipos: true, maxSize: 25 * 1024 * 1024 });
 
 module.exports = upload;
