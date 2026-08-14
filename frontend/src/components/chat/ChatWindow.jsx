@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Paperclip, Mic, Square, Loader, ArrowLeft, Users, Settings } from 'lucide-react';
+import { Send, Paperclip, Mic, Pause, Play, X, Loader, ArrowLeft, Users, Settings } from 'lucide-react';
 import { chatService } from '../../services/chatService';
 import { getSocket, joinConversa, leaveConversa, sendMessage, emitTyping, emitStopTyping, markRead, onNewMessage, onUserTyping, onUserStopTyping } from '../../services/socketClient';
 import MessageBubble from './MessageBubble';
@@ -13,12 +13,19 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
   const [typingUsers, setTypingUsers] = useState([]);
   const [enviandoAnexo, setEnviandoAnexo] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [recordingPaused, setRecordingPaused] = useState(false);
+  const [recordWaveform, setRecordWaveform] = useState([]);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const recorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const streamRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const waveTimerRef = useRef(null);
+  const discardRef = useRef(false);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -102,14 +109,14 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
     if (window.__chatNewMessage) window.__chatNewMessage(m);
   };
 
-  const enviar = async ({ conteudo, tipo = 'texto', ficheiro_url = null }) => {
+  const enviar = async ({ conteudo, tipo = 'texto', ficheiro_url = null, ficheiro_nome = null, ficheiro_tamanho = null, ficheiro_tipo = null }) => {
     setSending(true);
     try {
-      const resp = await sendMessage({ conversaId, conteudo, tipo, ficheiro_url });
+      const resp = await sendMessage({ conversaId, conteudo, tipo, ficheiro_url, ficheiro_nome, ficheiro_tamanho, ficheiro_tipo });
       addMessage(resp?.data || resp);
     } catch (err) {
       try {
-        const res = await chatService.enviarMensagem(conversaId, { conteudo, tipo, ficheiro_url });
+        const res = await chatService.enviarMensagem(conversaId, { conteudo, tipo, ficheiro_url, ficheiro_nome, ficheiro_tamanho, ficheiro_tipo });
         addMessage(res.data);
       } catch (e2) {
         console.error('Erro ao enviar mensagem:', e2);
@@ -139,7 +146,10 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
       await enviar({
         conteudo,
         tipo: isImagem ? 'imagem' : isAudio ? 'audio' : 'ficheiro',
-        ficheiro_url: res.data.url
+        ficheiro_url: res.data.url,
+        ficheiro_nome: file.name || null,
+        ficheiro_tamanho: file.size || null,
+        ficheiro_tipo: file.type || null
       });
     } catch (err) {
       console.error('Erro ao enviar ficheiro:', err);
@@ -158,21 +168,53 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const rec = new MediaRecorder(stream);
       audioChunksRef.current = [];
+      discardRef.current = false;
       rec.ondataavailable = (ev) => {
         if (ev.data.size > 0) audioChunksRef.current.push(ev.data);
       };
       rec.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
+        clearInterval(waveTimerRef.current);
+        audioContextRef.current?.close().catch(() => {});
+        setRecording(false);
+        setRecordingPaused(false);
         const blob = new Blob(audioChunksRef.current, { type: rec.mimeType || 'audio/webm' });
         audioChunksRef.current = [];
-        setRecording(false);
+        setRecordWaveform([]);
+        if (discardRef.current) {
+          discardRef.current = false;
+          return;
+        }
         await handleAudioBlob(blob);
       };
       recorderRef.current = rec;
       rec.start();
       setRecording(true);
+      setRecordingPaused(false);
+
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      audioContextRef.current = ctx;
+      analyserRef.current = analyser;
+
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      waveTimerRef.current = setInterval(() => {
+        if (rec.state === 'paused') return;
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        setRecordWaveform(prev => [...prev.slice(-47), Math.min(1, rms * 2.5)]);
+      }, 70);
     } catch (err) {
       console.error('Erro ao gravar áudio:', err);
       setRecording(false);
@@ -185,6 +227,29 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
       recorderRef.current.stop();
     } else {
       setRecording(false);
+      setRecordWaveform([]);
+    }
+  };
+
+  const cancelRecording = () => {
+    discardRef.current = true;
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      recorderRef.current.stop();
+    } else {
+      setRecording(false);
+      setRecordWaveform([]);
+    }
+  };
+
+  const togglePauseRecording = () => {
+    const rec = recorderRef.current;
+    if (!rec) return;
+    if (rec.state === 'recording') {
+      rec.pause();
+      setRecordingPaused(true);
+    } else if (rec.state === 'paused') {
+      rec.resume();
+      setRecordingPaused(false);
     }
   };
 
@@ -194,7 +259,14 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
     setEnviandoAnexo(true);
     try {
       const res = await chatService.uploadFicheiro(file);
-      await enviar({ conteudo: 'Mensagem de áudio', tipo: 'audio', ficheiro_url: res.data.url });
+      await enviar({
+        conteudo: 'Mensagem de áudio',
+        tipo: 'audio',
+        ficheiro_url: res.data.url,
+        ficheiro_nome: file.name,
+        ficheiro_tamanho: file.size,
+        ficheiro_tipo: file.type || 'audio/webm'
+      });
     } catch (err) {
       console.error('Erro ao enviar áudio:', err);
     } finally {
@@ -310,16 +382,44 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
           {enviandoAnexo ? <Loader className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
         </button>
         {recording ? (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30">
-            <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
-            <span className="text-xs font-semibold text-red-600 dark:text-red-400">A gravar...</span>
+          <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30">
+            <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse flex-shrink-0" />
+            <div className="flex items-end gap-[2px] h-6 flex-1 min-w-0">
+              {(recordWaveform.length ? recordWaveform : Array(24).fill(0.3)).map((v, i) => (
+                <span
+                  key={i}
+                  className="w-[3px] rounded-full bg-red-500 transition-all"
+                  style={{ height: `${Math.max(3, Math.round(v * 22))}px`, opacity: recordingPaused ? 0.4 : 1 }}
+                />
+              ))}
+            </div>
+            <span className="text-[11px] font-semibold text-red-600 dark:text-red-400 flex-shrink-0">
+              {recordingPaused ? 'Pausado' : 'A gravar'}
+            </span>
+            <button
+              type="button"
+              onClick={togglePauseRecording}
+              title={recordingPaused ? 'Continuar' : 'Pausar'}
+              className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
+            >
+              {recordingPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={cancelRecording}
+              title="Cancelar gravação"
+              className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
             <button
               type="button"
               onClick={stopRecording}
-              title="Parar gravação"
-              className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              title="Enviar áudio"
+              disabled={recordingPaused}
+              className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-40"
             >
-              <Square className="w-3.5 h-3.5" />
+              <Send className="w-4 h-4" />
             </button>
           </div>
         ) : (

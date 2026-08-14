@@ -103,7 +103,7 @@ function setupSocket(io) {
     socket.on('send-message', async (data, callback) => {
       const dbc = getDB();
       if (!dbc) return callback?.({ error: 'Base de dados indisponível' });
-      const { conversaId, conteudo, tipo = 'texto', ficheiro_url, respondendo_a } = data || {};
+      const { conversaId, conteudo, tipo = 'texto', ficheiro_url, respondendo_a, ficheiro_nome, ficheiro_tamanho, ficheiro_tipo } = data || {};
       if (!conteudo || !conteudo.trim()) return callback?.({ error: 'Mensagem vazia' });
       if (!conversaId) return callback?.({ error: 'Conversa inválida' });
 
@@ -121,6 +121,9 @@ function setupSocket(io) {
           conteudo: conteudo.trim(),
           tipo,
           ficheiro_url: ficheiro_url || null,
+          ficheiro_nome: ficheiro_nome || null,
+          ficheiro_tamanho: ficheiro_tamanho || null,
+          ficheiro_tipo: ficheiro_tipo || null,
           respondendo_a: respondendo_a || null,
           created_at: new Date()
         });

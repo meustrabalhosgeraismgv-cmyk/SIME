@@ -5,6 +5,15 @@ const { getDB } = require('../config/mongodb');
 const { authenticateToken } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
+router.post('/upload', authenticateToken, upload.chat.single('ficheiro'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado' });
+    res.json({ url: `/uploads/chat/${req.file.filename}`, message: 'Ficheiro enviado' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao enviar ficheiro' });
+  }
+});
+
 const canCreateGroup = (perfil) => perfil === 'admin' || perfil === 'instituicao';
 const canCreatePrivate = (perfil) => ['admin', 'instituicao', 'encarregado'].includes(perfil);
 
@@ -282,7 +291,7 @@ router.get('/conversas/:id/mensagens', authenticateToken, async (req, res) => {
 router.post('/conversas/:id/mensagens', authenticateToken, async (req, res) => {
   try {
     const db = getDB();
-    const { conteudo, tipo = 'texto', ficheiro_url, respondendo_a } = req.body;
+    const { conteudo, tipo = 'texto', ficheiro_url, respondendo_a, ficheiro_nome, ficheiro_tamanho, ficheiro_tipo } = req.body;
     if (!conteudo || !conteudo.trim()) return res.status(400).json({ error: 'Mensagem vazia' });
 
     const conversaId = new ObjectId(req.params.id);
@@ -298,6 +307,9 @@ router.post('/conversas/:id/mensagens', authenticateToken, async (req, res) => {
       conteudo: conteudo.trim(),
       tipo,
       ficheiro_url: ficheiro_url || null,
+      ficheiro_nome: ficheiro_nome || null,
+      ficheiro_tamanho: ficheiro_tamanho || null,
+      ficheiro_tipo: ficheiro_tipo || null,
       respondendo_a: respondendo_a || null,
       created_at: new Date()
     };
