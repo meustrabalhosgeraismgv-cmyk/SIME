@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Paperclip, Image as ImageIcon, ArrowLeft, Users, Settings, MoreVertical } from 'lucide-react';
 import { chatService } from '../../services/chatService';
-import { joinConversa, leaveConversa, sendMessage, emitTyping, emitStopTyping, markRead, onNewMessage, onUserTyping, onUserStopTyping } from '../../services/socketClient';
+import { getSocket, joinConversa, leaveConversa, sendMessage, emitTyping, emitStopTyping, markRead, onNewMessage, onUserTyping, onUserStopTyping } from '../../services/socketClient';
 import MessageBubble from './MessageBubble';
 
 export default function ChatWindow({ conversaId, user, onBack, onOpenSettings }) {
@@ -79,14 +79,35 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
     const text = input.trim();
     setInput('');
 
-    sendMessage({ conversaId, conteudo: text }, (response) => {
-      if (response?.error) {
-        chatService.enviarMensagem(conversaId, { conteudo: text }).then(res => {
-          setMessages(prev => [...prev, res.data]);
-        }).catch(() => {});
+    const addMessage = (m) => {
+      if (!m) return;
+      const key = m.id || m._id;
+      setMessages(prev => prev.some(x => (x.id || x._id) === key) ? prev : [...prev, m]);
+      if (window.__chatNewMessage) window.__chatNewMessage(m);
+    };
+
+    const socket = getSocket();
+    if (socket?.connected) {
+      sendMessage({ conversaId, conteudo: text }, (response) => {
+        if (response?.error) {
+          chatService.enviarMensagem(conversaId, { conteudo: text })
+            .then(res => addMessage(res.data))
+            .catch(() => {});
+        } else if (response) {
+          addMessage(response);
+        }
+        setSending(false);
+      });
+    } else {
+      try {
+        const res = await chatService.enviarMensagem(conversaId, { conteudo: text });
+        addMessage(res.data);
+      } catch (err) {
+        console.error('Erro ao enviar mensagem:', err);
+      } finally {
+        setSending(false);
       }
-      setSending(false);
-    });
+    }
   };
 
   const handleInputChange = (e) => {
