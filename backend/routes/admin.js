@@ -65,7 +65,7 @@ router.put('/users/:id/aprovar', authenticateToken, authorizeRole('admin'), asyn
 
     await db.collection('usuarios').updateOne(
       { _id: new ObjectId(req.params.id) },
-      { $set: { aprovado: 1 } }
+      { $set: { aprovado: true } }
     );
 
     if (user.email) {

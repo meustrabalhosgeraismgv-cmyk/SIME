@@ -7,11 +7,45 @@ const { authenticateToken } = require('../middleware/auth');
 const canCreateGroup = (perfil) => perfil === 'admin' || perfil === 'instituicao';
 const canCreatePrivate = (perfil) => ['admin', 'instituicao', 'encarregado'].includes(perfil);
 
+function toStr(v) {
+  if (v == null) return v;
+  return typeof v.toString === 'function' ? v.toString() : v;
+}
+
+function normalizarParticipante(p) {
+  if (!p) return p;
+  return { ...p, id: toStr(p._id), _id: p._id };
+}
+
+function normalizarMensagem(msg) {
+  if (!msg) return msg;
+  return {
+    ...msg,
+    id: toStr(msg._id),
+    _id: msg._id,
+    conversa_id: toStr(msg.conversa_id),
+    remetente_id: toStr(msg.remetente_id)
+  };
+}
+
+function usuarioLookup(as, localField) {
+  return {
+    $lookup: {
+      from: 'usuarios',
+      let: { idVal: `$${localField}` },
+      pipeline: [
+        { $match: { $expr: { $eq: [{ $toString: '$_id' }, '$$idVal'] } } }
+      ],
+      as
+    }
+  };
+}
+
 async function getOtherParticipant(conversaId, userId) {
   const db = getDB();
   const participante = await db.collection('conversa_participantes').aggregate([
     { $match: { conversa_id: conversaId, usuario_id: { $ne: userId } } },
-    { $lookup: { from: 'usuarios', localField: 'usuario_id', foreignField: '_id', as: 'usuario' } },
+    usuarioLookup('usuario', 'usuario_id'),
     { $unwind: '$usuario' },
     { $project: {
       _id: '$usuario._id', username: '$usuario.username', nome: '$usuario.nome',
@@ -19,7 +53,8 @@ async function getOtherParticipant(conversaId, userId) {
       entidade_id: '$usuario.entidade_id', entidade_tipo: '$usuario.entidade_tipo'
     } }
   ]).toArray();
-  return participante[0] || null;
+  const p = participante[0] || null;
+  return normalizarParticipante(p);
 }
 
 async function getConversationInfo(conversaId, userId) {
@@ -29,7 +64,7 @@ async function getConversationInfo(conversaId, userId) {
 
   const participantes = await db.collection('conversa_participantes').aggregate([
     { $match: { conversa_id: conversaId } },
-    { $lookup: { from: 'usuarios', localField: 'usuario_id', foreignField: '_id', as: 'usuario' } },
+    usuarioLookup('usuario', 'usuario_id'),
     { $unwind: '$usuario' },
     { $project: {
       _id: '$usuario._id', username: '$usuario.username', nome: '$usuario.nome',
@@ -40,13 +75,13 @@ async function getConversationInfo(conversaId, userId) {
 
   const lastMsgDocs = await db.collection('mensagens').aggregate([
     { $match: { conversa_id: conversaId } },
-    { $lookup: { from: 'usuarios', localField: 'remetente_id', foreignField: '_id', as: 'remetente' } },
+    usuarioLookup('remetente', 'remetente_id'),
     { $unwind: { path: '$remetente', preserveNullAndEmptyArrays: true } },
     { $addFields: { remetente_nome: '$remetente.nome' } },
     { $sort: { created_at: -1 } },
     { $limit: 1 }
   ]).toArray();
-  const lastMsg = lastMsgDocs[0] || null;
+  const lastMsg = normalizarMensagem(lastMsgDocs[0] || null);
 
   const participacao = await db.collection('conversa_participantes').findOne({
     conversa_id: conversaId, usuario_id: userId
@@ -59,7 +94,13 @@ async function getConversationInfo(conversaId, userId) {
     created_at: { $gt: lidoAte }
   });
 
-  return { ...conversa, participantes, ultima_mensagem: lastMsg, nao_lidas: unread || 0 };
+  return {
+    ...conversa,
+    id: toStr(conversa._id),
+    participantes: participantes.map(normalizarParticipante),
+    ultima_mensagem: lastMsg,
+    nao_lidas: unread || 0
+  };
 }
 
 router.get('/conversas', authenticateToken, async (req, res) => {
@@ -126,7 +167,7 @@ router.post('/conversas', authenticateToken, async (req, res) => {
       ]).toArray();
 
       if (existing.length > 0) {
-        return res.json({ id: existing[0]._id, message: 'Conversa já existe' });
+        return res.json({ id: toStr(existing[0]._id), message: 'Conversa já existe' });
       }
 
       const result = await db.collection('conversas').insertOne({
@@ -137,7 +178,7 @@ router.post('/conversas', authenticateToken, async (req, res) => {
       await db.collection('conversa_participantes').insertOne({ conversa_id: conversaId, usuario_id: userId, cargo: 'admin', lido_ate: new Date() });
       await db.collection('conversa_participantes').insertOne({ conversa_id: conversaId, usuario_id: otherUserId, cargo: 'membro', lido_ate: new Date() });
 
-      res.status(201).json({ id: conversaId, message: 'Conversa criada' });
+      res.status(201).json({ id: toStr(conversaId), message: 'Conversa criada' });
 
     } else if (tipo === 'grupo') {
       if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome do grupo obrigatório' });
@@ -165,7 +206,7 @@ router.post('/conversas', authenticateToken, async (req, res) => {
         tipo: 'sistema', created_at: new Date()
       });
 
-      res.status(201).json({ id: conversaId, message: 'Grupo criado' });
+      res.status(201).json({ id: toStr(conversaId), message: 'Grupo criado' });
     }
   } catch (error) {
     console.error('Erro ao criar conversa:', error);
@@ -210,7 +251,7 @@ router.get('/conversas/:id/mensagens', authenticateToken, async (req, res) => {
 
     const mensagens = await db.collection('mensagens').aggregate([
       { $match: filter },
-      { $lookup: { from: 'usuarios', localField: 'remetente_id', foreignField: '_id', as: 'remetente' } },
+      usuarioLookup('remetente', 'remetente_id'),
       { $unwind: { path: '$remetente', preserveNullAndEmptyArrays: true } },
       { $addFields: {
         remetente_nome: '$remetente.nome',
@@ -230,7 +271,7 @@ router.get('/conversas/:id/mensagens', authenticateToken, async (req, res) => {
       { $set: { lido_ate: new Date() } }
     );
 
-    res.json({ data: mensagens });
+    res.json({ data: mensagens.map(normalizarMensagem) });
   } catch (error) {
     console.error('Erro ao listar mensagens:', error);
     res.status(500).json({ error: 'Erro ao listar mensagens' });
@@ -269,7 +310,7 @@ router.post('/conversas/:id/mensagens', authenticateToken, async (req, res) => {
 
     const msgWithSender = await db.collection('mensagens').aggregate([
       { $match: { _id: result.insertedId } },
-      { $lookup: { from: 'usuarios', localField: 'remetente_id', foreignField: '_id', as: 'remetente' } },
+      usuarioLookup('remetente', 'remetente_id'),
       { $unwind: { path: '$remetente', preserveNullAndEmptyArrays: true } },
       { $addFields: {
         remetente_nome: '$remetente.nome',
@@ -280,7 +321,7 @@ router.post('/conversas/:id/mensagens', authenticateToken, async (req, res) => {
       { $project: { remetente: 0 } }
     ]).toArray();
 
-    const msg = msgWithSender[0];
+    const msg = normalizarMensagem(msgWithSender[0]);
 
     const io = req.app.get('io');
     if (io) {
@@ -298,7 +339,7 @@ router.get('/utilizadores', authenticateToken, async (req, res) => {
   try {
     const db = getDB();
     const user = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
-    const filter = { aprovado: 1, _id: { $ne: new ObjectId(req.user.id) } };
+    const filter = { aprovado: true, _id: { $ne: new ObjectId(req.user.id) } };
 
     if (user.perfil === 'admin') {
       // Admin can message everyone
@@ -314,7 +355,7 @@ router.get('/utilizadores', authenticateToken, async (req, res) => {
       .sort({ nome: 1, username: 1 })
       .toArray();
 
-    res.json({ data: users });
+    res.json({ data: users.map(u => ({ ...u, id: toStr(u._id) })) });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao listar utilizadores' });
   }

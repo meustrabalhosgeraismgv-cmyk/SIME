@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, Filter, BarChart3, Users, School, GraduationCap, BookOpen, AlertTriangle } from 'lucide-react';
+import { FileText, Download, Filter, BarChart3, Users, School, GraduationCap, BookOpen, AlertTriangle, FileDown } from 'lucide-react';
 import Loading from '../components/Loading';
 import StatusChip from '../components/StatusChip';
 import { dashboardService, relatorioService } from '../services/api';
+import { carregarLogo, criarPdf, cabecalhoPagina, rodapePaginas, secaoPDF, tabelaPDF, formatNumero, formatData } from '../utils/pdfUtils';
+
+const TIPO_LABEL = {
+  pre_escolar: 'Pré-Escolar',
+  ensino_primario: 'Primário',
+  ensino_medio: 'Médio'
+};
 
 const Relatorios = () => {
   const [activeTab, setActiveTab] = useState('sintese');
   const [relatorio, setRelatorio] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [filtro, setFiltro] = useState('todos');
 
   const [sintese, setSintese] = useState(null);
@@ -53,129 +61,6 @@ const Relatorios = () => {
     }
   };
 
-  const exportSintesePdf = () => {
-    if (!sintese) return;
-    const win = window.open('', '_blank', 'width=900,height=700');
-    const s = sintese;
-    const row = (label, value) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:500;color:#374151">${label}</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:#111827">${value}</td></tr>`;
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Relatório de Síntese - Educa Mais+ Angola</title>
-  <style>
-    body { font-family: Arial, sans-serif; color: #111827; padding: 32px; }
-    h1 { font-size: 22px; margin: 0 0 4px; color: #0061a4; }
-    h2 { font-size: 16px; margin: 24px 0 8px; color: #111827; }
-    .sub { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    th { background: #0061a4; color: #fff; padding: 8px 12px; text-align: left; font-size: 13px; }
-    td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
-    .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
-    .grid { display: flex; flex-wrap: wrap; gap: 16px; }
-    .stat { flex: 1; min-width: 140px; text-align: center; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; }
-    .stat .num { font-size: 28px; font-weight: 800; color: #0061a4; }
-    .stat .lab { font-size: 12px; color: #6b7280; }
-    .footer { margin-top: 32px; color: #6b7280; font-size: 11px; text-align: center; }
-    @media print { body { padding: 0; } .no-print { display: none; } }
-  </style>
-</head>
-<body>
-  <div class="no-print" style="text-align:right;margin-bottom:16px">
-    <button onclick="window.print()" style="background:#0061a4;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px">Imprimir / Guardar PDF</button>
-  </div>
-  <h1>Relatório de Síntese - Educa Mais+ Angola</h1>
-  <p class="sub">${s.periodo.label} • Gerado em ${new Date(s.gerado_em).toLocaleString('pt-PT')}</p>
-
-  <div class="grid">
-    <div class="stat"><div class="num">${s.resumo.total_instituicoes}</div><div class="lab">Instituições</div></div>
-    <div class="stat"><div class="num">${s.resumo.total_alunos}</div><div class="lab">Alunos</div></div>
-    <div class="stat"><div class="num">${s.resumo.total_professores}</div><div class="lab">Professores</div></div>
-    <div class="stat"><div class="num">${s.resumo.total_turmas}</div><div class="lab">Turmas</div></div>
-    <div class="stat"><div class="num">${s.resumo.total_matriculas}</div><div class="lab">Matrículas Ativas</div></div>
-  </div>
-
-  <h2>Ocupação de Vagas</h2>
-  <div class="card">
-    <table>
-      <tr><th>Vagas Totais</th><th>Vagas Ocupadas</th><th>Vagas Disponíveis</th><th>Percentual de Ocupação</th></tr>
-      <tr>
-        <td style="text-align:center">${s.vagas.total_vagas}</td>
-        <td style="text-align:center">${s.vagas.vagas_ocupadas}</td>
-        <td style="text-align:center">${s.vagas.vagas_disponiveis}</td>
-        <td style="text-align:center;font-weight:700;color:${s.vagas.percentual_ocupacao >= 70 ? '#dc2626' : '#16a34a'}">${s.vagas.percentual_ocupacao}%</td>
-      </tr>
-    </table>
-  </div>
-
-  <h2>Instituições por Tipo</h2>
-  <div class="card">
-    <table>
-      <tr><th>Tipo</th><th style="text-align:center">Total</th></tr>
-      ${s.instituicoes_por_tipo.length ? s.instituicoes_por_tipo.map(t => `<tr><td>${t._id}</td><td style="text-align:center">${t.total}</td></tr>`).join('') : '<tr><td colspan="2" style="text-align:center;color:#9ca3af">Sem dados</td></tr>'}
-    </table>
-  </div>
-
-  <h2>Alunos por Género</h2>
-  <div class="card">
-    <table>
-      <tr><th>Género</th><th style="text-align:center">Total</th></tr>
-      ${s.alunos_por_genero.length ? s.alunos_por_genero.map(g => `<tr><td>${g._id === 'M' ? 'Masculino' : 'Feminino'}</td><td style="text-align:center">${g.total}</td></tr>`).join('') : '<tr><td colspan="2" style="text-align:center;color:#9ca3af">Sem dados</td></tr>'}
-    </table>
-  </div>
-
-  ${s.evolucao_trimestres?.length ? `
-  <h2>Evolução de Matrículas por Trimestre (${ano})</h2>
-  <div class="card">
-    <table>
-      <tr><th>Trimestre</th><th style="text-align:center">Matrículas</th></tr>
-      ${s.evolucao_trimestres.map(t => `<tr><td>${t.nome}</td><td style="text-align:center">${t.total}</td></tr>`).join('')}
-    </table>
-  </div>` : ''}
-
-  <div class="footer">Sistema Integrado de Monitorização Escolar • República de Angola • © ${new Date().getFullYear()}</div>
-  <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
-</body>
-</html>`;
-    win.document.write(html);
-    win.document.close();
-  };
-
-  const exportOcupacaoPdf = () => {
-    if (!relatorio.length) return;
-    const win = window.open('', '_blank', 'width=900,height=700');
-    const rows = relatorio.map(i => `<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${i.nome}</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${(i.tipo||'').replace('_',' ')}</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${i.vagas_totais}</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${i.vagas_ocupadas}</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${i.vagas_disponiveis}</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${i.percentual_ocupacao}%</td></tr>`).join('');
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"><title>Relatório de Ocupação - Educa Mais+ Angola</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 32px; }
-    h1 { font-size: 22px; color: #0061a4; margin-bottom: 4px; }
-    .sub { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #0061a4; color: #fff; padding: 8px 12px; text-align: left; font-size: 13px; }
-    .footer { margin-top: 32px; color: #6b7280; font-size: 11px; text-align: center; }
-    @media print { body { padding: 0; } .no-print { display: none; } }
-  </style>
-</head>
-<body>
-  <div class="no-print" style="text-align:right;margin-bottom:16px"><button onclick="window.print()" style="background:#0061a4;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px">Imprimir / Guardar PDF</button></div>
-  <h1>Relatório de Ocupação das Instituições</h1>
-  <p class="sub">Gerado em ${new Date().toLocaleString('pt-PT')}</p>
-  <table>
-    <tr><th>Instituição</th><th>Tipo</th><th>Vagas Totais</th><th>Vagas Ocupadas</th><th>Vagas Disponíveis</th><th>Ocupação</th></tr>
-    ${rows}
-  </table>
-  <div class="footer">Sistema Integrado de Monitorização Escolar • República de Angola • © ${new Date().getFullYear()}</div>
-  <script>window.onload = () => setTimeout(() => window.print(), 400);</script>
-</body>
-</html>`;
-    win.document.write(html);
-    win.document.close();
-  };
-
   const getStatusOcupacao = (percentual) => {
     if (percentual >= 90) return 'error';
     if (percentual >= 70) return 'warning';
@@ -202,19 +87,237 @@ const Relatorios = () => {
     normais: relatorio.filter(i => i.percentual_ocupacao < 70).length
   };
 
+  const sinteseNarrativa = () => {
+    if (!sintese) return '';
+    const r = sintese.resumo;
+    const v = sintese.vagas;
+    const ocupacao = v?.percentual_ocupacao || 0;
+    const estado = ocupacao >= 90 ? 'situação crítica de ocupação' : ocupacao >= 70 ? 'elevada procura' : 'situação confortável';
+    const tipoMais = sintese.instituicoes_por_tipo?.length
+      ? TIPO_LABEL[sintese.instituicoes_por_tipo[0]._id] || sintese.instituicoes_por_tipo[0]._id
+      : '—';
+    return `O presente relatório apresenta a síntese da realidade do sistema educativo. Existem actualmente ${formatNumero(r?.total_instituicoes)} instituições de ensino, com ${formatNumero(r?.total_alunos)} alunos matriculados, apoiados por ${formatNumero(r?.total_professores)} professores e organizados em ${formatNumero(r?.total_turmas)} turmas. As vagas existentes totalizam ${formatNumero(v?.total_vagas)}, das quais ${formatNumero(v?.vagas_disponiveis)} estão disponíveis (${formatNumero(ocupacao, 1)}% de ocupação), o que reflecte ${estado}. ${tipoMais !== '—' ? `O subsistema de ensino ${tipoMais.toLowerCase()} é o mais representado.` : ''} Ao longo do período registaram-se ${formatNumero(r?.solicitacoes)} solicitações e ${formatNumero(r?.denuncias)} denúncias.`;
+  };
+
+  const gerarPdfSintese = async () => {
+    const s = sintese;
+    const logo = await carregarLogo();
+    const doc = criarPdf();
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const m = 12;
+
+    cabecalhoPagina(doc, {
+      titulo: 'Relatório de Síntese',
+      subtitulo: `${s.periodo.label} • Gerado em ${formatData(s.gerado_em)}`,
+      logo
+    });
+    doc.y = 42;
+
+    secaoPDF(doc, 1, 'Indicadores Gerais', { pw, ph, m });
+    tabelaPDF(doc, ['Indicador', 'Total'], [
+      ['Instituições de Ensino', formatNumero(s.resumo.total_instituicoes)],
+      ['Alunos Matriculados', formatNumero(s.resumo.total_alunos)],
+      ['Professores', formatNumero(s.resumo.total_professores)],
+      ['Turmas', formatNumero(s.resumo.total_turmas)],
+      ['Matrículas Activas', formatNumero(s.resumo.total_matriculas)]
+    ], { m });
+
+    secaoPDF(doc, 2, 'Ocupação de Vagas', { pw, ph, m });
+    tabelaPDF(doc, ['Vagas Totais', 'Vagas Ocupadas', 'Vagas Disponíveis', 'Ocupação (%)'], [
+      [formatNumero(s.vagas.total_vagas), formatNumero(s.vagas.vagas_ocupadas), formatNumero(s.vagas.vagas_disponiveis), formatNumero(s.vagas.percentual_ocupacao, 1)]
+    ], { m, headColor: [16, 185, 129] });
+
+    secaoPDF(doc, 3, 'Instituições por Tipo', { pw, ph, m });
+    if (s.instituicoes_por_tipo?.length) {
+      tabelaPDF(doc, ['Tipo de Ensino', 'Total'], s.instituicoes_por_tipo.map(t => [TIPO_LABEL[t._id] || t._id, formatNumero(t.total)]), { m });
+    } else {
+      doc.text('Sem dados.', m, doc.y); doc.y += 6;
+    }
+
+    secaoPDF(doc, 4, 'Alunos por Género', { pw, ph, m });
+    if (s.alunos_por_genero?.length) {
+      tabelaPDF(doc, ['Género', 'Total'], s.alunos_por_genero.map(g => [g._id === 'M' ? 'Masculino' : 'Feminino', formatNumero(g.total)]), { m });
+    } else {
+      doc.text('Sem dados.', m, doc.y); doc.y += 6;
+    }
+
+    if (s.alunos_por_estado?.length) {
+      secaoPDF(doc, 5, 'Alunos por Estado', { pw, ph, m });
+      tabelaPDF(doc, ['Estado', 'Total'], s.alunos_por_estado.map(e => [e._id || '-', formatNumero(e.total)]), { m });
+    }
+
+    if (s.evolucao_trimestres?.length) {
+      secaoPDF(doc, 6, 'Matrículas por Trimestre', { pw, ph, m });
+      tabelaPDF(doc, ['Trimestre', 'Matrículas'], s.evolucao_trimestres.map(t => [t.nome, formatNumero(t.total)]), { m, headColor: [245, 158, 11] });
+    }
+
+    secaoPDF(doc, 7, 'Actividade do Sistema', { pw, ph, m });
+    tabelaPDF(doc, ['Item', 'Total'], [
+      ['Notícias Publicadas', formatNumero(s.resumo.noticias)],
+      ['Comunicados', formatNumero(s.resumo.comunicados)],
+      ['Solicitações', formatNumero(s.resumo.solicitacoes)],
+      ['Denúncias / SOS', formatNumero(s.resumo.denuncias)]
+    ], { m });
+
+    secaoPDF(doc, 8, 'Análise e Conclusão', { pw, ph, m });
+    const narrativa = sinteseNarrativa();
+    const lines = doc.splitTextToSize(narrativa, pw - 2 * m);
+    for (const line of lines) {
+      if (doc.y + 5 > ph - 15) { doc.addPage(); doc.y = 22; }
+      doc.text(line, m, doc.y);
+      doc.y += 5;
+    }
+    doc.y += 4;
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(120, 120, 140);
+    doc.text('Documento gerado automaticamente pelo SIME - Educa Mais+ Angola.', m, doc.y);
+
+    rodapePaginas(doc);
+    doc.save(`Relatorio_Sintese_SIME_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const gerarPdfOcupacao = async () => {
+    const logo = await carregarLogo();
+    const doc = criarPdf();
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const m = 12;
+
+    cabecalhoPagina(doc, {
+      titulo: 'Relatório de Ocupação das Instituições',
+      subtitulo: `Gerado em ${formatData(new Date().toISOString())}`,
+      logo
+    });
+    doc.y = 42;
+
+    secaoPDF(doc, 1, 'Síntese de Ocupação', { pw, ph, m });
+    tabelaPDF(doc, ['Situação', 'Nº de Escolas'], [
+      ['Total de Escolas', formatNumero(stats.total)],
+      ['Situação Crítica (≥ 90%)', formatNumero(stats.criticos)],
+      ['Necessita Atenção (70% - 90%)', formatNumero(stats.atencao)],
+      ['Situação Normal (< 70%)', formatNumero(stats.normais)]
+    ], { m, headColor: [245, 158, 11] });
+
+    secaoPDF(doc, 2, 'Instituições por Ocupação', { pw, ph, m });
+    if (relatorio.length) {
+      tabelaPDF(doc, ['Instituição', 'Tipo', 'Vagas Totais', 'Ocupadas', 'Disponíveis', 'Ocupação (%)'],
+        relatorio.map(i => [
+          i.nome || '-',
+          TIPO_LABEL[i.tipo] || String(i.tipo || '').replace('_', ' ') || '-',
+          formatNumero(i.vagas_totais),
+          formatNumero(i.vagas_ocupadas),
+          formatNumero(i.vagas_disponiveis),
+          formatNumero(i.percentual_ocupacao, 1)
+        ]),
+        { m });
+    } else {
+      doc.text('Sem dados.', m, doc.y); doc.y += 6;
+    }
+
+    const criticas = relatorio.filter(i => i.percentual_ocupacao >= 70);
+    if (criticas.length) {
+      secaoPDF(doc, 3, 'Alertas de Ocupação', { pw, ph, m });
+      doc.setFillColor(254, 226, 226);
+      doc.setDrawColor(220, 38, 38);
+      doc.roundedRect(m, doc.y, pw - 2 * m, 18, 1.5, 1.5, 'FD');
+      doc.setTextColor(127, 29, 29);
+      doc.setFontSize(9);
+      doc.text(`Existem ${formatNumero(criticas.length)} instituições com ocupação igual ou superior a 70%.`, m + 4, doc.y + 6);
+      doc.text('Recomenda-se monitorização das vagas e reforço da capacidade para os próximos períodos lectivos.', m + 4, doc.y + 12);
+      doc.y += 22;
+      tabelaPDF(doc, ['Instituição', 'Ocupação (%)', 'Situação'],
+        criticas.slice(0, 15).map(i => [i.nome || '-', formatNumero(i.percentual_ocupacao, 1), getStatusLabel(i.percentual_ocupacao)]),
+        { m, headColor: [220, 38, 38] });
+    }
+
+    rodapePaginas(doc);
+    doc.save(`Relatorio_Ocupacao_SIME_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  const exportarPdf = async () => {
+    setExporting(true);
+    try {
+      if (activeTab === 'sintese') {
+        if (!sintese) return;
+        await gerarPdfSintese();
+      } else {
+        if (!relatorio.length) return;
+        await gerarPdfOcupacao();
+      }
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const renderHeader = () => (
+    <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-card overflow-hidden">
+      <div className="sime-gradient px-6 py-5 flex items-center gap-4">
+        <img src="/Logotipo.png" alt="SIME" className="w-12 h-12 rounded-xl bg-white/20 p-1 object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+        <div className="flex-1">
+          <h3 className="text-xl font-bold text-white">Relatório de Síntese</h3>
+          <p className="text-sm text-white/70">
+            {sintese?.periodo?.label || 'Geral'} • Gerado em {sintese ? formatData(sintese.gerado_em) : formatData(new Date().toISOString())}
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2">
+          <School className="w-4 h-4 text-white" />
+          <span className="text-xs text-white font-medium">Educa Mais+ Angola</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAlertas = () => {
+    const criticas = relatorio.filter(i => i.percentual_ocupacao >= 90);
+    const atencao = relatorio.filter(i => i.percentual_ocupacao >= 70 && i.percentual_ocupacao < 90);
+    if (!criticas.length && !atencao.length) return null;
+    return (
+      <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-card p-6 border-l-4 border-error">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-error" />
+          Alertas de Ocupação
+        </h3>
+        <div className="space-y-3">
+          {criticas.slice(0, 5).map(i => (
+            <div key={i._id || i.id} className="flex items-center justify-between bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{i.nome}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{TIPO_LABEL[i.tipo] || i.tipo?.replace('_', ' ')}</p>
+              </div>
+              <span className="text-sm font-bold text-error">{i.percentual_ocupacao}% • Crítico</span>
+            </div>
+          ))}
+          {atencao.slice(0, 5).map(i => (
+            <div key={i._id || i.id} className="flex items-center justify-between bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{i.nome}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{TIPO_LABEL[i.tipo] || i.tipo?.replace('_', ' ')}</p>
+              </div>
+              <span className="text-sm font-bold text-warning">{i.percentual_ocupacao}% • Atenção</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Relatórios</h2>
           <p className="text-gray-500 dark:text-gray-400">Relatórios de síntese e ocupação das instituições</p>
         </div>
         <button
-          onClick={() => activeTab === 'sintese' ? exportSintesePdf() : exportOcupacaoPdf()}
-          className="btn-primary flex items-center gap-2"
+          onClick={exportarPdf}
+          disabled={exporting || (activeTab === 'sintese' && !sintese) || (activeTab === 'ocupacao' && !relatorio.length)}
+          className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Download className="w-5 h-5" />
-          Exportar PDF
+          {exporting ? <FileDown className="w-5 h-5 animate-pulse" /> : <Download className="w-5 h-5" />}
+          {exporting ? 'A gerar PDF...' : 'Exportar PDF'}
         </button>
       </div>
 
@@ -235,6 +338,8 @@ const Relatorios = () => {
 
       {activeTab === 'sintese' && (
         <>
+          {sintese && renderHeader()}
+
           <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-card p-6">
             <div className="flex items-center gap-4 flex-wrap">
               <Filter className="w-5 h-5 text-gray-400 dark:text-gray-500" />
@@ -295,6 +400,14 @@ const Relatorios = () => {
                 </div>
               </div>
 
+              <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-card p-6 border-l-4 border-primary">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Análise Executiva
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{sinteseNarrativa()}</p>
+              </div>
+
               <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-card p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ocupação de Vagas</h3>
                 <div className="flex items-center gap-6 flex-wrap">
@@ -329,7 +442,7 @@ const Relatorios = () => {
                     <div className="space-y-3">
                       {sintese.instituicoes_por_tipo.map(t => (
                         <div key={t._id} className="flex items-center justify-between">
-                          <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">{t._id?.replace('_', ' ')}</span>
+                          <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">{TIPO_LABEL[t._id] || t._id?.replace('_', ' ')}</span>
                           <div className="flex items-center gap-3 flex-1 max-w-[40%]">
                             <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                               <div className="h-2 rounded-full bg-primary" style={{ width: `${(t.total / sintese.resumo.total_instituicoes) * 100}%` }}></div>
@@ -364,6 +477,22 @@ const Relatorios = () => {
                 </div>
               </div>
 
+              {sintese.alunos_por_estado?.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-card p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Alunos por Estado</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {sintese.alunos_por_estado.map(e => (
+                        <div key={e._id} className="bg-gray-50 dark:bg-navy-800 rounded-2xl p-4 text-center">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">{e._id || '—'}</p>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">{e.total}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {sintese.evolucao_trimestres?.length > 0 && (
                 <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-card p-6">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Matrículas por Trimestre ({ano})</h3>
@@ -396,6 +525,8 @@ const Relatorios = () => {
                   <p className="text-xs text-gray-500 dark:text-gray-400">Denúncias/SOS</p>
                 </div>
               </div>
+
+              {renderAlertas()}
             </>
           )}
         </>
@@ -450,9 +581,9 @@ const Relatorios = () => {
                   </thead>
                   <tbody>
                     {filteredRelatorio.map((item) => (
-                      <tr key={item.id}>
+                      <tr key={item._id || item.id}>
                         <td><span className="font-medium text-gray-900 dark:text-white">{item.nome}</span></td>
-                        <td><span className="capitalize">{item.tipo?.replace('_', ' ')}</span></td>
+                        <td><span className="capitalize">{TIPO_LABEL[item.tipo] || item.tipo?.replace('_', ' ')}</span></td>
                         <td className="text-center">{item.vagas_totais}</td>
                         <td className="text-center">{item.vagas_ocupadas}</td>
                         <td className="text-center font-medium text-success">{item.vagas_disponiveis}</td>
@@ -478,6 +609,8 @@ const Relatorios = () => {
               </div>
             )}
           </div>
+
+          {renderAlertas()}
         </>
       )}
     </div>

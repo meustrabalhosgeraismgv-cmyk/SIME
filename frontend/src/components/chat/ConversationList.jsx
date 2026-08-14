@@ -24,11 +24,12 @@ export default function ConversationList({ selectedId, onSelect, user }) {
 
   useEffect(() => {
     const handler = (msg) => {
+      const cid = msg.conversa_id?.toString?.() || msg.conversa_id;
       setConversas(prev => {
-        const idx = prev.findIndex(c => c.id === msg.conversa_id);
+        const idx = prev.findIndex(c => (c.id?.toString?.() || c.id) === cid);
         if (idx >= 0) {
           const updated = [...prev];
-          updated[idx] = { ...updated[idx], ultima_mensagem: msg, nao_lidas: updated[idx].id === selectedId ? 0 : (updated[idx].nao_lidas || 0) + 1 };
+          updated[idx] = { ...updated[idx], ultima_mensagem: msg, nao_lidas: (updated[idx].id?.toString?.() || updated[idx].id) === selectedId ? 0 : (updated[idx].nao_lidas || 0) + 1 };
           updated.sort((a, b) => {
             const ta = a.ultima_mensagem?.created_at || a.created_at;
             const tb = b.ultima_mensagem?.created_at || b.created_at;

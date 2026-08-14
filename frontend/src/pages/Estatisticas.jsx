@@ -31,6 +31,7 @@ import {
 import Loading from '../components/Loading';
 import StatsCard from '../components/StatsCard';
 import { dashboardService } from '../services/api';
+import { carregarLogo, criarPdf, cabecalhoPagina, rodapePaginas, secaoPDF, tabelaPDF, formatNumero, formatData } from '../utils/pdfUtils';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 const COLORS_DARK = ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA'];
@@ -106,10 +107,92 @@ const Estatisticas = () => {
     }
   };
 
+  const tipoLabel = (tipo) => {
+    if (tipo === 'pre_escolar') return 'Pré-Escolar';
+    if (tipo === 'ensino_primario') return 'Primário';
+    if (tipo === 'ensino_medio') return 'Médio';
+    return tipo || '-';
+  };
+
   const handleExportPdf = async () => {
     setExportingPdf(true);
     try {
-      // TODO: implement PDF export
+      const logo = await carregarLogo();
+      const doc = criarPdf();
+      const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
+      const m = 12;
+
+      cabecalhoPagina(doc, {
+        titulo: 'Relatório de Estatísticas',
+        subtitulo: `Gerado em ${formatData(new Date().toISOString())} • Sistema Integrado de Monitorização Escolar`,
+        logo
+      });
+      doc.y = 42;
+
+      secaoPDF(doc, 1, 'Resumo Geral', { pw, ph, m });
+      tabelaPDF(doc,
+        ['Indicador', 'Total'],
+        [
+          ['Total de Escolas', formatNumero(stats?.resumo?.total_instituicoes)],
+          ['Total de Alunos', formatNumero(stats?.resumo?.total_alunos)],
+          ['Total de Professores', formatNumero(stats?.resumo?.total_professores)],
+          ['Turmas Ativas', formatNumero(stats?.resumo?.total_turmas)]
+        ],
+        { m }
+      );
+
+      const vagas = stats?.vagas || {};
+      doc.setFontSize(10);
+      doc.setTextColor(...[55, 65, 81]);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        `Ocupação de vagas: ${formatNumero(vagas.vagas_ocupadas)} ocupadas de ${formatNumero(vagas.total_vagas)} (${formatNumero(vagas.percentual_ocupacao, 1)}%) — ${formatNumero(vagas.vagas_disponiveis)} disponíveis.`,
+        m, doc.y + 2, { maxWidth: pw - 2 * m }
+      );
+      doc.y += 12;
+
+      secaoPDF(doc, 2, 'Instituições por Tipo', { pw, ph, m });
+      const porTipo = stats?.instituicoes_por_tipo || [];
+      if (porTipo.length) {
+        tabelaPDF(doc, ['Tipo de Ensino', 'Total'],
+          porTipo.map(t => [tipoLabel(t.tipo), formatNumero(t.total)]),
+          { m });
+      } else {
+        doc.text('Sem dados.', m, doc.y);
+        doc.y += 6;
+      }
+
+      secaoPDF(doc, 3, 'Alunos por Género', { pw, ph, m });
+      const porGenero = stats?.alunos_por_genero || [];
+      if (porGenero.length) {
+        tabelaPDF(doc, ['Género', 'Total'],
+          porGenero.map(g => [g.sexo === 'M' ? 'Masculino' : 'Feminino', formatNumero(g.total)]),
+          { m });
+      } else {
+        doc.text('Sem dados.', m, doc.y);
+        doc.y += 6;
+      }
+
+      secaoPDF(doc, 4, 'Estatísticas por Província', { pw, ph, m });
+      if (provinciaStats?.length) {
+        tabelaPDF(doc, ['Província', 'Escolas', 'Alunos', 'Professores'],
+          provinciaStats.map(p => [
+            p.provincia || '-',
+            formatNumero(p.total_instituicoes || 0),
+            formatNumero(p.total_alunos || 0),
+            formatNumero(p.total_professores || 0)
+          ]),
+          { m, headColor: [16, 185, 129] });
+      } else {
+        doc.text('Sem dados.', m, doc.y);
+        doc.y += 6;
+      }
+
+      rodapePaginas(doc);
+      doc.save(`Estatisticas_SIME_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
     } finally {
       setExportingPdf(false);
     }
@@ -118,7 +201,46 @@ const Estatisticas = () => {
   const handleExportExcel = async () => {
     setExportingExcel(true);
     try {
-      // TODO: implement Excel export
+      const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const rows = [];
+      rows.push(['Relatório de Estatísticas - SIME']);
+      rows.push(['Gerado em', formatData(new Date().toISOString())]);
+      rows.push([]);
+      rows.push(['RESUMO GERAL']);
+      rows.push(['Total de Escolas', stats?.resumo?.total_instituicoes || 0]);
+      rows.push(['Total de Alunos', stats?.resumo?.total_alunos || 0]);
+      rows.push(['Total de Professores', stats?.resumo?.total_professores || 0]);
+      rows.push(['Turmas Ativas', stats?.resumo?.total_turmas || 0]);
+      rows.push([]);
+      rows.push(['INSTITUIÇÕES POR TIPO']);
+      rows.push(['Tipo de Ensino', 'Total']);
+      (stats?.instituicoes_por_tipo || []).forEach(t => rows.push([tipoLabel(t.tipo), t.total]));
+      rows.push([]);
+      rows.push(['ALUNOS POR GÉNERO']);
+      rows.push(['Género', 'Total']);
+      (stats?.alunos_por_genero || []).forEach(g => rows.push([g.sexo === 'M' ? 'Masculino' : 'Feminino', g.total]));
+      rows.push([]);
+      rows.push(['ESTATÍSTICAS POR PROVÍNCIA']);
+      rows.push(['Província', 'Escolas', 'Alunos', 'Professores']);
+      (provinciaStats || []).forEach(p => rows.push([p.provincia || '-', p.total_instituicoes || 0, p.total_alunos || 0, p.total_professores || 0]));
+      rows.push([]);
+      const vagas = stats?.vagas || {};
+      rows.push(['OCUPAÇÃO DE VAGAS']);
+      rows.push(['Vagas Totais', 'Vagas Ocupadas', 'Vagas Disponíveis', 'Percentual de Ocupação (%)']);
+      rows.push([vagas.total_vagas || 0, vagas.vagas_ocupadas || 0, vagas.vagas_disponiveis || 0, vagas.percentual_ocupacao || 0]);
+
+      const csv = rows.map(r => r.map(esc).join(';')).join('\r\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Estatisticas_SIME_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao exportar Excel:', error);
     } finally {
       setExportingExcel(false);
     }

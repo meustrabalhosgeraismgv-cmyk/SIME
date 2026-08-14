@@ -47,7 +47,9 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
 
   useEffect(() => {
     const unsubMsg = onNewMessage((msg) => {
-      if (msg.conversa_id === conversaId) {
+      const cid = (msg.conversa_id?.toString?.() || msg.conversa_id);
+      const currentId = (conversaId?.toString?.() || conversaId);
+      if (cid === currentId) {
         setMessages(prev => [...prev, msg]);
         markRead(conversaId);
       }
@@ -157,9 +159,9 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
         ) : (
           messages.map((msg, idx) => (
             <MessageBubble
-              key={msg.id}
+              key={msg.id || msg._id}
               message={msg}
-              isOwn={msg.remetente_id === user?.id}
+              isOwn={String(msg.remetente_id) === String(user?.id)}
               showSender={conversa?.tipo === 'grupo' && idx === 0 || (idx > 0 && messages[idx - 1].remetente_id !== msg.remetente_id)}
             />
           ))
