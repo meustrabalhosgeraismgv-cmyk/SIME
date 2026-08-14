@@ -50,7 +50,10 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
       const cid = (msg.conversa_id?.toString?.() || msg.conversa_id);
       const currentId = (conversaId?.toString?.() || conversaId);
       if (cid === currentId) {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          const key = msg.id || msg._id;
+          return prev.some(x => (x.id || x._id) === key) ? prev : [...prev, msg];
+        });
         markRead(conversaId);
       }
       if (window.__chatNewMessage) window.__chatNewMessage(msg);
@@ -70,6 +73,21 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
     return () => { unsubMsg(); unsubTyping(); unsubStop(); };
   }, [conversaId, user?.id]);
 
+  useEffect(() => {
+    if (!conversaId) return;
+    let interval = null;
+    const sincronizar = () => {
+      const s = getSocket();
+      if (!s?.connected) {
+        chatService.getMensagens(conversaId)
+          .then(res => setMessages(res.data.data || []))
+          .catch(() => {});
+      }
+    };
+    interval = setInterval(sincronizar, 5000);
+    return () => clearInterval(interval);
+  }, [conversaId]);
+
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
   const handleSend = async (e) => {
@@ -86,27 +104,18 @@ export default function ChatWindow({ conversaId, user, onBack, onOpenSettings })
       if (window.__chatNewMessage) window.__chatNewMessage(m);
     };
 
-    const socket = getSocket();
-    if (socket?.connected) {
-      sendMessage({ conversaId, conteudo: text }, (response) => {
-        if (response?.error) {
-          chatService.enviarMensagem(conversaId, { conteudo: text })
-            .then(res => addMessage(res.data))
-            .catch(() => {});
-        } else if (response) {
-          addMessage(response);
-        }
-        setSending(false);
-      });
-    } else {
+    try {
+      const resp = await sendMessage({ conversaId, conteudo: text });
+      addMessage(resp?.data || resp);
+    } catch (err) {
       try {
         const res = await chatService.enviarMensagem(conversaId, { conteudo: text });
         addMessage(res.data);
-      } catch (err) {
-        console.error('Erro ao enviar mensagem:', err);
-      } finally {
-        setSending(false);
+      } catch (e2) {
+        console.error('Erro ao enviar mensagem:', e2);
       }
+    } finally {
+      setSending(false);
     }
   };
 

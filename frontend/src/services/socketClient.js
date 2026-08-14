@@ -8,6 +8,10 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || (window.location.hostname ===
 
 export function connectSocket(token) {
   if (socket?.connected) return socket;
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 
   socket = io(SOCKET_URL, {
     auth: { token },
@@ -48,8 +52,14 @@ export function leaveConversa(conversaId) {
   socket?.emit('leave-conversa', conversaId);
 }
 
-export function sendMessage(data, callback) {
-  socket?.emit('send-message', data, callback);
+export function sendMessage(data) {
+  return new Promise((resolve, reject) => {
+    if (!socket?.connected) return reject(new Error('Socket não conectado'));
+    socket.emit('send-message', data, (response) => {
+      if (response?.error) return reject(new Error(response.error));
+      resolve(response);
+    });
+  });
 }
 
 export function emitTyping(conversaId) {
