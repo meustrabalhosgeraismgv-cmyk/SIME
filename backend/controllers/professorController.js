@@ -17,7 +17,9 @@ const getProfessores = async (req, res) => {
         { numero_funcionario: { $regex: search, $options: 'i' } }
       ];
     }
-    if (instituicao_id) {
+    if (req.user?.perfil === 'instituicao') {
+      matchStage.instituicao_id = matchInstituicaoId(req.user.entidade_id);
+    } else if (instituicao_id) {
       matchStage.instituicao_id = matchInstituicaoId(instituicao_id);
     }
     if (estado) {
@@ -105,6 +107,10 @@ const getProfessorById = async (req, res) => {
 
     const professor = result[0];
 
+    if (req.user?.perfil === 'instituicao' && String(professor.instituicao_id) !== String(req.user.entidade_id)) {
+      return res.status(403).json({ error: 'Sem permissão para ver este professor' });
+    }
+
     const turmas = await db.collection('turmas')
       .find({ professor_titular_id: new ObjectId(id) })
       .sort({ ano_letivo: -1 })
@@ -126,6 +132,10 @@ const createProfessor = async (req, res) => {
     });
     if (existing) {
       return res.status(400).json({ error: 'BI ou número de funcionário já existe' });
+    }
+
+    if (req.user?.perfil === 'instituicao' && String(instituicao_id) !== String(req.user.entidade_id)) {
+      return res.status(403).json({ error: 'Só pode registar professores na sua instituição' });
     }
 
     const result = await db.collection('professores').insertOne({
@@ -159,6 +169,12 @@ const updateProfessor = async (req, res) => {
     const { id } = req.params;
     const { nome_completo, bi, data_nascimento, telefone, email, formacao, especialidade, numero_funcionario, instituicao_id, estado } = req.body;
 
+    const professor = await db.collection('professores').findOne({ _id: new ObjectId(id) });
+    if (!professor) return res.status(404).json({ error: 'Professor não encontrado' });
+    if (req.user?.perfil === 'instituicao' && String(professor.instituicao_id) !== String(req.user.entidade_id)) {
+      return res.status(403).json({ error: 'Sem permissão para editar este professor' });
+    }
+
     const updateData = {
       nome_completo,
       bi,
@@ -189,6 +205,10 @@ const deleteProfessor = async (req, res) => {
     const { id } = req.params;
 
     const professor = await db.collection('professores').findOne({ _id: new ObjectId(id) });
+    if (!professor) return res.status(404).json({ error: 'Professor não encontrado' });
+    if (req.user?.perfil === 'instituicao' && String(professor.instituicao_id) !== String(req.user.entidade_id)) {
+      return res.status(403).json({ error: 'Sem permissão para remover este professor' });
+    }
 
     await db.collection('professores').deleteOne({ _id: new ObjectId(id) });
 

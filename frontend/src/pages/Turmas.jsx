@@ -5,12 +5,14 @@ import Modal from '../components/Modal';
 import StatusChip from '../components/StatusChip';
 import Loading from '../components/Loading';
 import Alert from '../components/Alert';
-import { turmaService } from '../services/api';
+import { turmaService, professorService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const Turmas = () => {
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isGestor = user?.perfil === 'instituicao';
   const [turmas, setTurmas] = useState([]);
+  const [professores, setProfessores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [search, setSearch] = useState('');
@@ -22,7 +24,7 @@ const Turmas = () => {
     nome: '',
     ano_letivo: new Date().getFullYear(),
     nivel: '1a_classe',
-    instituicao_id: '',
+    instituicao_id: isGestor ? user?.entidade_id : '',
     professor_titular_id: '',
     vagas: 40
   });
@@ -30,6 +32,14 @@ const Turmas = () => {
   useEffect(() => {
     loadTurmas();
   }, [pagination.page]);
+
+  useEffect(() => {
+    if (isGestor && user?.entidade_id) {
+      professorService.getAll({ instituicao_id: user.entidade_id, limit: 100 })
+        .then(res => setProfessores(res.data.data))
+        .catch(() => setProfessores([]));
+    }
+  }, []);
 
   const loadTurmas = async () => {
     try {
@@ -77,7 +87,7 @@ const Turmas = () => {
       nome: turma.nome,
       ano_letivo: turma.ano_letivo,
       nivel: turma.nivel,
-      instituicao_id: turma.instituicao_id || '',
+      instituicao_id: isGestor ? user?.entidade_id : (turma.instituicao_id || ''),
       professor_titular_id: turma.professor_titular_id || '',
       vagas: turma.vagas
     });
@@ -111,7 +121,7 @@ const Turmas = () => {
       nome: '',
       ano_letivo: new Date().getFullYear(),
       nivel: '1a_classe',
-      instituicao_id: '',
+      instituicao_id: isGestor ? user?.entidade_id : '',
       professor_titular_id: '',
       vagas: 40
     });
@@ -157,7 +167,7 @@ const Turmas = () => {
         >
           <Eye className="w-4 h-4" />
         </button>
-        {hasRole('admin', 'diretor') && (
+        {hasRole('admin', 'diretor', 'instituicao') && (
           <>
             <button 
               onClick={(e) => { e.stopPropagation(); handleEdit(row); }}
@@ -184,7 +194,7 @@ const Turmas = () => {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Turmas</h2>
           <p className="text-gray-500 dark:text-gray-400">Gestão de turmas</p>
         </div>
-        {hasRole('admin', 'diretor') && (
+        {hasRole('admin', 'diretor', 'instituicao') && (
           <button 
             onClick={() => { resetForm(); setShowModal(true); }}
             className="btn-primary flex items-center gap-2"
@@ -299,27 +309,49 @@ const Turmas = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Instituição *
               </label>
-              <input
-                type="number"
-                value={formData.instituicao_id}
-                onChange={(e) => setFormData({ ...formData, instituicao_id: e.target.value })}
-                className="input-field"
-                placeholder="ID da instituição"
-                required
-              />
+              {isGestor ? (
+                <input
+                  type="text"
+                  value={user?.instituicao_nome || user?.entidade_id || formData.instituicao_id}
+                  className="input-field opacity-70"
+                  readOnly
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={formData.instituicao_id}
+                  onChange={(e) => setFormData({ ...formData, instituicao_id: e.target.value })}
+                  className="input-field"
+                  placeholder="ID da instituição"
+                  required
+                />
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Professor Titular ID
+                Professor Titular
               </label>
-              <input
-                type="number"
-                value={formData.professor_titular_id}
-                onChange={(e) => setFormData({ ...formData, professor_titular_id: e.target.value })}
-                className="input-field"
-                placeholder="ID do professor"
-              />
+              {isGestor ? (
+                <select
+                  value={formData.professor_titular_id}
+                  onChange={(e) => setFormData({ ...formData, professor_titular_id: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="">Sem professor atribuído</option>
+                  {professores.map(p => (
+                    <option key={p.id} value={p.id}>{p.nome_completo}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={formData.professor_titular_id}
+                  onChange={(e) => setFormData({ ...formData, professor_titular_id: e.target.value })}
+                  className="input-field"
+                  placeholder="ID do professor"
+                />
+              )}
             </div>
 
             <div>

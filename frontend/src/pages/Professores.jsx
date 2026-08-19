@@ -9,7 +9,8 @@ import { professorService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const Professores = () => {
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
+  const isGestor = user?.perfil === 'instituicao';
   const [professores, setProfessores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
@@ -27,7 +28,7 @@ const Professores = () => {
     formacao: '',
     especialidade: '',
     numero_funcionario: '',
-    instituicao_id: '',
+    instituicao_id: isGestor ? user?.entidade_id : '',
     estado: 'ativo'
   });
 
@@ -86,7 +87,7 @@ const Professores = () => {
       formacao: professor.formacao || '',
       especialidade: professor.especialidade || '',
       numero_funcionario: professor.numero_funcionario,
-      instituicao_id: professor.instituicao_id || '',
+      instituicao_id: isGestor ? user?.entidade_id : (professor.instituicao_id || ''),
       estado: professor.estado
     });
     setEditingId(professor.id);
@@ -124,7 +125,7 @@ const Professores = () => {
       formacao: '',
       especialidade: '',
       numero_funcionario: '',
-      instituicao_id: '',
+      instituicao_id: isGestor ? user?.entidade_id : '',
       estado: 'ativo'
     });
     setEditingId(null);
@@ -149,7 +150,7 @@ const Professores = () => {
         >
           <Eye className="w-4 h-4" />
         </button>
-        {hasRole('admin', 'diretor') && (
+        {hasRole('admin', 'diretor', 'instituicao') && (
           <>
             <button 
               onClick={(e) => { e.stopPropagation(); handleEdit(row); }}
@@ -176,7 +177,7 @@ const Professores = () => {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Professores</h2>
           <p className="text-gray-500 dark:text-gray-400">Gestão de professores</p>
         </div>
-        {hasRole('admin', 'diretor') && (
+        {hasRole('admin', 'diretor', 'instituicao') && (
           <button 
             onClick={() => { resetForm(); setShowModal(true); }}
             className="btn-primary flex items-center gap-2"
@@ -336,14 +337,23 @@ const Professores = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Instituição *
               </label>
-              <input
-                type="number"
-                value={formData.instituicao_id}
-                onChange={(e) => setFormData({ ...formData, instituicao_id: e.target.value })}
-                className="input-field"
-                placeholder="ID da instituição"
-                required
-              />
+              {isGestor ? (
+                <input
+                  type="text"
+                  value={user?.instituicao_nome || user?.entidade_id || formData.instituicao_id}
+                  className="input-field opacity-70"
+                  readOnly
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={formData.instituicao_id}
+                  onChange={(e) => setFormData({ ...formData, instituicao_id: e.target.value })}
+                  className="input-field"
+                  placeholder="ID da instituição"
+                  required
+                />
+              )}
             </div>
 
             <div>
