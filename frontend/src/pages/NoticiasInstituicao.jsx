@@ -13,6 +13,8 @@ const CATEGORIAS = [
   { id: 'evento', label: 'Evento' },
   { id: 'edital', label: 'Edital' },
   { id: 'circular', label: 'Circular' },
+  { id: 'visita', label: 'Visitas' },
+  { id: 'potencialidade', label: 'Potencialidades' },
   { id: 'geral', label: 'Geral' },
 ];
 

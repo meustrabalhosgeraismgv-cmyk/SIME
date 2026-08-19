@@ -11,7 +11,15 @@ const CATEGORY_COLORS = {
   evento: 'bg-[#4CAF50] text-white',
   edital: 'bg-[#F44336] text-white',
   circular: 'bg-[#7B1FA2] text-white',
+  visita: 'bg-[#00897B] text-white',
+  potencialidade: 'bg-[#9C27B0] text-white',
   geral: 'bg-[#607D8B] text-white',
+};
+
+const CATEGORIA_LABELS = {
+  educacao: 'Educação', aviso: 'Avisos', evento: 'Eventos',
+  edital: 'Editais', circular: 'Circulares', visita: 'Visitas',
+  potencialidade: 'Potencialidades', geral: 'Geral',
 };
 
 function formatarData(dateStr) {
@@ -68,7 +76,7 @@ export default function NoticiaDetalhe() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16">
           <div className="flex items-center gap-3 mb-4 flex-wrap">
             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${CATEGORY_COLORS[noticia.categoria] || 'bg-gray-400 text-white'}`}>
-              {noticia.categoria}
+              {CATEGORIA_LABELS[noticia.categoria] || noticia.categoria}
             </span>
             <span className="flex items-center gap-1 text-sm text-white/80">
               <Calendar size={14} /> {formatarData(noticia.created_at)}

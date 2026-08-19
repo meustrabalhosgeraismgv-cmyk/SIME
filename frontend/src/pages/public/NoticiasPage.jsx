@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Newspaper, Calendar, Tag, ChevronRight, ArrowRight } from 'lucide-react'
+import { Newspaper, Calendar, Tag, ChevronRight, ArrowRight, Play } from 'lucide-react'
 import api from '../../services/api'
 
 const FALLBACK_NOTICIAS = [];
@@ -12,6 +12,8 @@ const CATEGORIAS = [
   { id: 'evento', label: 'Eventos', color: 'bg-green-500' },
   { id: 'edital', label: 'Editais', color: 'bg-red-500' },
   { id: 'circular', label: 'Circulares', color: 'bg-purple-500' },
+  { id: 'visita', label: 'Visitas', color: 'bg-teal-500' },
+  { id: 'potencialidade', label: 'Potencialidades', color: 'bg-[#9C27B0]' },
   { id: 'geral', label: 'Geral', color: 'bg-gray-500' },
 ]
 
@@ -21,7 +23,15 @@ const CATEGORY_COLORS = {
   evento: 'bg-[#4CAF50] text-white',
   edital: 'bg-[#F44336] text-white',
   circular: 'bg-[#7B1FA2] text-white',
+  visita: 'bg-[#00897B] text-white',
+  potencialidade: 'bg-[#9C27B0] text-white',
   geral: 'bg-[#607D8B] text-white',
+}
+
+const CATEGORIA_LABELS = {
+  educacao: 'Educação', aviso: 'Avisos', evento: 'Eventos',
+  edital: 'Editais', circular: 'Circulares', visita: 'Visitas',
+  potencialidade: 'Potencialidades', geral: 'Geral',
 }
 
 const ITENS_POR_PAGINA = 6
@@ -51,12 +61,17 @@ function NoticiaCard({ noticia }) {
               CATEGORY_COLORS[noticia.categoria] || 'bg-gray-400 text-white'
             }`}
           >
-            {noticia.categoria}
+            {CATEGORIA_LABELS[noticia.categoria] || noticia.categoria}
           </span>
           <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
             <Calendar size={12} />
             {formatarData(noticia.created_at)}
           </span>
+          {(noticia.videos || []).length > 0 && (
+            <span className="flex items-center gap-1 text-xs text-[#00897B] dark:text-teal-400 font-medium">
+              <Play size={12} /> {noticia.videos.length} vídeo{(noticia.videos || []).length > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">
           {noticia.titulo}
@@ -95,12 +110,17 @@ function NoticiaDestaque({ noticia }) {
                 CATEGORY_COLORS[noticia.categoria] || 'bg-gray-400 text-white'
               }`}
             >
-              {noticia.categoria}
+              {CATEGORIA_LABELS[noticia.categoria] || noticia.categoria}
             </span>
             <span className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
               <Calendar size={14} />
               {formatarData(noticia.created_at)}
             </span>
+            {(noticia.videos || []).length > 0 && (
+              <span className="flex items-center gap-1 text-sm text-[#00897B] dark:text-teal-400 font-medium">
+                <Play size={14} /> {noticia.videos.length} vídeo institucional
+              </span>
+            )}
           </div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-4">
             {noticia.titulo}
