@@ -9,11 +9,11 @@ import { documentoService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const CATEGORIAS_DEFAULT = [
-  { id: 'noticia', label: 'Notícias' },
   { id: 'aviso_publicidade', label: 'Avisos e Publicidades' },
   { id: 'edital_licenca', label: 'Editais para Licenças' },
-  { id: 'visita', label: 'Visitas' },
-  { id: 'potencialidade', label: 'Potencialidades' },
+  { id: 'lei', label: 'Leis' },
+  { id: 'memorando', label: 'Memorandos' },
+  { id: 'minuta', label: 'Minutas' },
   { id: 'geral', label: 'Geral' },
 ];
 
@@ -32,7 +32,7 @@ const FicheirosEscolares = () => {
   const [formData, setFormData] = useState({
     titulo: '',
     descricao: '',
-    categoria: 'noticia',
+    categoria: 'aviso_publicidade',
     referencia: '',
     numero: '',
     ficheiro_url: '',
@@ -104,7 +104,7 @@ const FicheirosEscolares = () => {
     setFormData({
       titulo: doc.titulo,
       descricao: doc.descricao || '',
-      categoria: doc.categoria || 'noticia',
+      categoria: doc.categoria || 'aviso_publicidade',
       referencia: doc.referencia || '',
       numero: doc.numero || '',
       ficheiro_url: doc.ficheiro_url || '',
@@ -143,7 +143,7 @@ const FicheirosEscolares = () => {
     setFormData({
       titulo: '',
       descricao: '',
-      categoria: categoriaAtiva || 'noticia',
+      categoria: categoriaAtiva || 'aviso_publicidade',
       referencia: '',
       numero: '',
       ficheiro_url: '',

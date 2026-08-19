@@ -6,20 +6,20 @@ import api from '../../services/api'
 const FALLBACK_DOCUMENTOS = [];
 
 const CATEGORIAS_DEFAULT = [
-  { id: 'noticia', label: 'Notícias', color: 'bg-blue-500' },
   { id: 'aviso_publicidade', label: 'Avisos e Publicidades', color: 'bg-orange-500' },
   { id: 'edital_licenca', label: 'Editais para Licenças', color: 'bg-red-500' },
-  { id: 'visita', label: 'Visitas', color: 'bg-green-500' },
-  { id: 'potencialidade', label: 'Potencialidades', color: 'bg-purple-500' },
+  { id: 'lei', label: 'Leis', color: 'bg-blue-500' },
+  { id: 'memorando', label: 'Memorandos', color: 'bg-purple-500' },
+  { id: 'minuta', label: 'Minutas', color: 'bg-teal-500' },
   { id: 'geral', label: 'Geral', color: 'bg-gray-500' },
 ]
 
 const CATEGORY_COLORS = {
-  noticia: 'bg-[#2196F3] text-white',
   aviso_publicidade: 'bg-[#FF9800] text-white',
   edital_licenca: 'bg-[#F44336] text-white',
-  visita: 'bg-[#4CAF50] text-white',
-  potencialidade: 'bg-[#9C27B0] text-white',
+  lei: 'bg-[#2196F3] text-white',
+  memorando: 'bg-[#7B1FA2] text-white',
+  minuta: 'bg-[#00897B] text-white',
   geral: 'bg-[#607D8B] text-white',
 }
 

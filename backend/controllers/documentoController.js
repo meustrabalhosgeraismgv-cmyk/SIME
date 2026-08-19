@@ -3,11 +3,11 @@ const { ObjectId } = require('mongodb');
 const { matchInstituicaoId } = require('../utils/filters');
 
 const CATEGORIAS = {
-  noticia: 'Notícias',
   aviso_publicidade: 'Avisos e Publicidades',
   edital_licenca: 'Editais para Licenças',
-  visita: 'Visitas',
-  potencialidade: 'Potencialidades',
+  lei: 'Leis',
+  memorando: 'Memorandos',
+  minuta: 'Minutas',
   geral: 'Geral'
 };
 
