@@ -273,23 +273,16 @@ const Estatisticas = () => {
     { name: 'Disponíveis', value: stats?.vagas?.vagas_disponiveis || 0 }
   ];
 
-  const trendData = [
-    { name: 'Jan', matriculas: 1200, alunos: 8500 },
-    { name: 'Fev', matriculas: 1350, alunos: 8700 },
-    { name: 'Mar', matriculas: 1500, alunos: 8900 },
-    { name: 'Abr', matriculas: 1650, alunos: 9100 },
-    { name: 'Mai', matriculas: 1800, alunos: 9300 },
-    { name: 'Jun', matriculas: 1950, alunos: 9500 }
-  ];
+  const mpm = stats?.matriculas_por_mes || [];
+  const apm = stats?.alunos_por_mes || [];
 
-  const matriculaTrend = [
-    { name: 'Jan', matriculas: 1200 },
-    { name: 'Fev', matriculas: 1350 },
-    { name: 'Mar', matriculas: 1500 },
-    { name: 'Abr', matriculas: 1650 },
-    { name: 'Mai', matriculas: 1800 },
-    { name: 'Jun', matriculas: 1950 }
-  ];
+  const trendData = mpm.map((m, i) => ({
+    name: m.name,
+    matriculas: m.matriculas,
+    alunos: apm[i]?.alunos || 0
+  }));
+
+  const matriculaTrend = mpm.map(m => ({ name: m.name, matriculas: m.matriculas }));
 
   return (
     <div className="space-y-6">

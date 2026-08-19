@@ -11,8 +11,8 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
 router.get('/', authenticateToken, getTurmas);
 router.get('/:id', authenticateToken, getTurmaById);
-router.post('/', authenticateToken, authorizeRole('admin', 'diretor'), createTurma);
-router.put('/:id', authenticateToken, authorizeRole('admin', 'diretor'), updateTurma);
-router.delete('/:id', authenticateToken, authorizeRole('admin', 'diretor'), deleteTurma);
+router.post('/', authenticateToken, authorizeRole('admin', 'diretor', 'instituicao'), createTurma);
+router.put('/:id', authenticateToken, authorizeRole('admin', 'diretor', 'instituicao'), updateTurma);
+router.delete('/:id', authenticateToken, authorizeRole('admin', 'diretor', 'instituicao'), deleteTurma);
 
 module.exports = router;

@@ -53,6 +53,7 @@ import FicheirosEscolares from './pages/FicheirosEscolares';
 import Sms from './pages/Sms';
 import RecursosHumanos from './pages/RecursosHumanos';
 import Denuncias from './pages/Denuncias';
+import Classificacoes from './pages/Classificacoes';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -131,6 +132,7 @@ const AppRoutes = () => {
         <Route path="sms" element={<Sms />} />
         <Route path="recursos-humanos" element={<RecursosHumanos />} />
         <Route path="denuncias" element={<Denuncias />} />
+        <Route path="classificacoes" element={<Classificacoes />} />
       </Route>
       
       <Route path="*" element={<Navigate to="/" replace />} />

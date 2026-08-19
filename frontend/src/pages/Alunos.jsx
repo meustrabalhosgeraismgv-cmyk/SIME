@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, ShieldCheck, History } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, ShieldCheck, History, UserCheck, Ban, RefreshCcw, AlertTriangle, Gavel, Loader2 } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import StatusChip from '../components/StatusChip';
@@ -8,8 +8,15 @@ import Alert from '../components/Alert';
 import { alunoService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
+const ACCOES_ESTADO = {
+  admitir: { titulo: 'Admitir Aluno', descricao: 'Confirmar a admissão do aluno na instituição. O encarregado será notificado por SMS.', botao: 'Admitir Aluno', cor: 'bg-green-500 hover:bg-green-600' },
+  suspender: { titulo: 'Suspender Aluno', descricao: 'Suspender temporariamente o aluno. O encarregado será notificado por SMS.', botao: 'Suspender', cor: 'bg-amber-500 hover:bg-amber-600' },
+  reativar: { titulo: 'Reativar Aluno', descricao: 'Reativar o aluno após suspensão. O encarregado será notificado por SMS.', botao: 'Reativar', cor: 'bg-blue-500 hover:bg-blue-600' },
+  expulsar: { titulo: 'Expulsar Aluno', descricao: 'Expulsar o aluno da instituição. O encarregado será notificado por SMS.', botao: 'Expulsar', cor: 'bg-red-500 hover:bg-red-600' }
+};
+
 const Alunos = () => {
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const [alunos, setAlunos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
@@ -18,6 +25,14 @@ const Alunos = () => {
   const [editingId, setEditingId] = useState(null);
   const [selectedAluno, setSelectedAluno] = useState(null);
   const [alert, setAlert] = useState(null);
+  const [estadoModal, setEstadoModal] = useState(null);
+  const [estadoMotivo, setEstadoMotivo] = useState('');
+  const [advertenciaAluno, setAdvertenciaAluno] = useState(null);
+  const [advertenciaForm, setAdvertenciaForm] = useState({ tipo: 'verbal', motivo: '' });
+  const [processoAluno, setProcessoAluno] = useState(null);
+  const [processoForm, setProcessoForm] = useState({ motivo: '', medidas: '' });
+  const [historicoAluno, setHistoricoAluno] = useState(null);
+  const [processando, setProcessando] = useState(false);
   const [formData, setFormData] = useState({
     nome_completo: '',
     data_nascimento: '',
@@ -39,9 +54,17 @@ const Alunos = () => {
     controlo_parental_observacoes: ''
   });
 
+  const isGestor = user?.perfil === 'instituicao';
+
   useEffect(() => {
     loadAlunos();
   }, [pagination.page]);
+
+  useEffect(() => {
+    if (isGestor && user?.entidade_id) {
+      setFormData(prev => ({ ...prev, instituicao_id: user.entidade_id }));
+    }
+  }, [isGestor, user?.entidade_id]);
 
   const loadAlunos = async () => {
     try {
@@ -49,7 +72,8 @@ const Alunos = () => {
       const response = await alunoService.getAll({
         page: pagination.page,
         limit: 10,
-        search
+        search,
+        instituicao_id: isGestor ? user?.entidade_id : ''
       });
       setAlunos(response.data.data);
       setPagination(response.data.pagination);
@@ -117,7 +141,7 @@ const Alunos = () => {
       naturalidade: aluno.naturalidade || '',
       numero_estudante: aluno.numero_estudante,
       encarregado_id: aluno.encarregado_id || '',
-      instituicao_id: aluno.instituicao_id || '',
+      instituicao_id: isGestor ? (user?.entidade_id || '') : (aluno.instituicao_id || ''),
       estado: aluno.estado,
       bi: aluno.bi || '',
       telefone: aluno.telefone || '',
@@ -140,6 +164,16 @@ const Alunos = () => {
       setSelectedAluno(response.data);
     } catch (error) {
       console.error('Erro ao carregar aluno:', error);
+      setAlert({ type: 'error', message: error.response?.data?.error || 'Erro ao carregar aluno' });
+    }
+  };
+
+  const handleHistorico = async (aluno) => {
+    try {
+      const response = await alunoService.getById(aluno.id);
+      setHistoricoAluno(response.data);
+    } catch (error) {
+      setAlert({ type: 'error', message: 'Erro ao carregar histórico disciplinar' });
     }
   };
 
@@ -150,8 +184,76 @@ const Alunos = () => {
         setAlert({ type: 'success', message: 'Aluno eliminado com sucesso!' });
         loadAlunos();
       } catch (error) {
-        setAlert({ type: 'error', message: 'Erro ao eliminar aluno' });
+        setAlert({ type: 'error', message: error.response?.data?.error || 'Erro ao eliminar aluno' });
       }
+    }
+  };
+
+  const handleMudarEstado = async () => {
+    if (!estadoModal) return;
+    setProcessando(true);
+    try {
+      const res = await alunoService.mudarEstado(estadoModal.aluno.id, { acao: estadoModal.acao, motivo: estadoMotivo });
+      const smsOk = res.data?.notificacao?.notificado;
+      setAlert({ type: 'success', message: `${ACCOES_ESTADO[estadoModal.acao].titulo} — ${smsOk ? 'encarregado notificado por SMS' : 'registada (sem telefone do encarregado para SMS)'}` });
+      setEstadoModal(null);
+      setEstadoMotivo('');
+      loadAlunos();
+    } catch (error) {
+      setAlert({ type: 'error', message: error.response?.data?.error || 'Erro ao executar a ação' });
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  const handleAdvertencia = async () => {
+    if (!advertenciaAluno || !advertenciaForm.motivo.trim()) return;
+    setProcessando(true);
+    try {
+      const res = await alunoService.emitirAdvertencia(advertenciaAluno.id, advertenciaForm);
+      const smsOk = res.data?.notificacao?.notificado;
+      setAlert({ type: 'success', message: `Advertência registada — ${smsOk ? 'encarregado notificado por SMS' : 'sem telefone do encarregado para SMS'}` });
+      setAdvertenciaAluno(null);
+      setAdvertenciaForm({ tipo: 'verbal', motivo: '' });
+      loadAlunos();
+    } catch (error) {
+      setAlert({ type: 'error', message: error.response?.data?.error || 'Erro ao registar advertência' });
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  const handleProcesso = async () => {
+    if (!processoAluno || !processoForm.motivo.trim()) return;
+    setProcessando(true);
+    try {
+      const res = await alunoService.abrirProcesso(processoAluno.id, processoForm);
+      const smsOk = res.data?.notificacao?.notificado;
+      setAlert({ type: 'success', message: `Processo ${res.data?.numero || ''} aberto — ${smsOk ? 'encarregado notificado por SMS' : 'sem telefone do encarregado para SMS'}` });
+      setProcessoAluno(null);
+      setProcessoForm({ motivo: '', medidas: '' });
+      loadAlunos();
+    } catch (error) {
+      setAlert({ type: 'error', message: error.response?.data?.error || 'Erro ao abrir processo disciplinar' });
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  const handleEncerrarProcesso = async (proc) => {
+    if (!historicoAluno) return;
+    const decisao = window.prompt('Decisão do processo disciplinar (resultado / medidas aplicadas):');
+    if (decisao === null) return;
+    setProcessando(true);
+    try {
+      const res = await alunoService.encerrarProcesso(historicoAluno.id, String(proc._id || proc.id), { decisao });
+      const smsOk = res.data?.notificacao?.notificado;
+      setAlert({ type: 'success', message: `Processo encerrado — ${smsOk ? 'encarregado notificado por SMS' : 'sem telefone do encarregado para SMS'}` });
+      handleHistorico({ id: historicoAluno.id });
+    } catch (error) {
+      setAlert({ type: 'error', message: error.response?.data?.error || 'Erro ao encerrar processo' });
+    } finally {
+      setProcessando(false);
     }
   };
 
@@ -163,7 +265,7 @@ const Alunos = () => {
       naturalidade: '',
       numero_estudante: '',
       encarregado_id: '',
-      instituicao_id: '',
+      instituicao_id: isGestor ? (user?.entidade_id || '') : '',
       estado: 'ativo',
       bi: '',
       telefone: '',
@@ -179,6 +281,8 @@ const Alunos = () => {
     setEditingId(null);
   };
 
+  const podeGerir = hasRole('admin', 'diretor', 'instituicao');
+
   const columns = [
     { header: 'Nome', accessor: 'nome_completo', render: (row) => (
       <span className="font-medium text-gray-900 dark:text-white">{row.nome_completo}</span>
@@ -193,24 +297,84 @@ const Alunos = () => {
       <StatusChip status={row.estado} />
     )},
     { header: 'Ações', accessor: 'acoes', render: (row) => (
-      <div className="flex items-center gap-2">
-        <button 
+      <div className="flex items-center gap-1 flex-wrap">
+        <button
           onClick={(e) => { e.stopPropagation(); handleView(row); }}
-          className="p-2 hover:bg-primary/10 rounded-lg text-primary dark:text-primary-light dark:hover:bg-primary/20"
+          title="Ver detalhes"
+          className="p-1.5 hover:bg-primary/10 rounded-lg text-primary dark:text-primary-light dark:hover:bg-primary/20"
         >
           <Eye className="w-4 h-4" />
         </button>
-        {hasRole('admin', 'diretor') && (
+        <button
+          onClick={(e) => { e.stopPropagation(); handleHistorico(row); }}
+          title="Histórico disciplinar"
+          className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-500 dark:hover:bg-blue-500/20"
+        >
+          <History className="w-4 h-4" />
+        </button>
+        {podeGerir && row.estado !== 'ativo' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setEstadoModal({ aluno: row, acao: 'admitir' }); }}
+            title="Admitir aluno"
+            className="p-1.5 hover:bg-green-500/10 rounded-lg text-green-600 dark:hover:bg-green-500/20"
+          >
+            <UserCheck className="w-4 h-4" />
+          </button>
+        )}
+        {podeGerir && row.estado === 'ativo' && (
           <>
-            <button 
+            <button
+              onClick={(e) => { e.stopPropagation(); setEstadoModal({ aluno: row, acao: 'suspender' }); }}
+              title="Suspender"
+              className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-600 dark:hover:bg-amber-500/20"
+            >
+              <Ban className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setEstadoModal({ aluno: row, acao: 'expulsar' }); }}
+              title="Expulsar"
+              className="p-1.5 hover:bg-red-500/10 rounded-lg text-red-600 dark:hover:bg-red-500/20"
+            >
+              <AlertTriangle className="w-4 h-4" />
+            </button>
+          </>
+        )}
+        {podeGerir && row.estado === 'suspenso' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setEstadoModal({ aluno: row, acao: 'reativar' }); }}
+            title="Reativar"
+            className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-600 dark:hover:bg-blue-500/20"
+          >
+            <RefreshCcw className="w-4 h-4" />
+          </button>
+        )}
+        {podeGerir && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); setAdvertenciaAluno(row); }}
+              title="Emitir advertência"
+              className="p-1.5 hover:bg-warning/10 rounded-lg text-warning dark:text-warning-light dark:hover:bg-warning/20"
+            >
+              <ShieldCheck className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setProcessoAluno(row); }}
+              title="Processo disciplinar"
+              className="p-1.5 hover:bg-purple-500/10 rounded-lg text-purple-600 dark:hover:bg-purple-500/20"
+            >
+              <Gavel className="w-4 h-4" />
+            </button>
+            <button
               onClick={(e) => { e.stopPropagation(); handleEdit(row); }}
-              className="p-2 hover:bg-warning/10 rounded-lg text-warning dark:text-warning-light dark:hover:bg-warning/20"
+              title="Editar"
+              className="p-1.5 hover:bg-warning/10 rounded-lg text-warning dark:text-warning-light dark:hover:bg-warning/20"
             >
               <Edit className="w-4 h-4" />
             </button>
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); handleDelete(row.id); }}
-              className="p-2 hover:bg-error/10 rounded-lg text-error dark:text-error-light dark:hover:bg-error/20"
+              title="Eliminar"
+              className="p-1.5 hover:bg-error/10 rounded-lg text-error dark:text-error-light dark:hover:bg-error/20"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -220,15 +384,19 @@ const Alunos = () => {
     )}
   ];
 
+  const formatData = (d) => {
+    try { return new Date(d).toLocaleDateString('pt-PT'); } catch { return ''; }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Alunos</h2>
-          <p className="text-gray-500 dark:text-gray-400">Gestão de alunos</p>
+          <p className="text-gray-500 dark:text-gray-400">Gestão de alunos e situação disciplinar</p>
         </div>
-        {hasRole('admin', 'diretor') && (
-          <button 
+        {podeGerir && (
+          <button
             onClick={() => { resetForm(); setShowModal(true); }}
             className="btn-primary flex items-center gap-2"
           >
@@ -239,10 +407,10 @@ const Alunos = () => {
       </div>
 
       {alert && (
-        <Alert 
-          type={alert.type} 
-          message={alert.message} 
-          onClose={() => setAlert(null)} 
+        <Alert
+          type={alert.type}
+          message={alert.message}
+          onClose={() => setAlert(null)}
         />
       )}
 
@@ -276,8 +444,8 @@ const Alunos = () => {
         />
       )}
 
-      <Modal 
-        isOpen={showModal} 
+      <Modal
+        isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={editingId ? 'Editar Aluno' : 'Novo Aluno'}
         size="lg"
@@ -360,6 +528,8 @@ const Alunos = () => {
                 className="input-field"
               >
                 <option value="ativo">Ativo</option>
+                <option value="suspenso">Suspenso</option>
+                <option value="expulso">Expulso</option>
                 <option value="transferido">Transferido</option>
                 <option value="abandono">Abandono</option>
                 <option value="concluido">Concluído</option>
@@ -371,12 +541,13 @@ const Alunos = () => {
                 Instituição *
               </label>
               <input
-                type="number"
+                type="text"
                 value={formData.instituicao_id}
                 onChange={(e) => setFormData({ ...formData, instituicao_id: e.target.value })}
                 className="input-field"
                 placeholder="ID da instituição"
                 required
+                disabled={isGestor}
               />
             </div>
 
@@ -385,7 +556,7 @@ const Alunos = () => {
                 Encarregado ID
               </label>
               <input
-                type="number"
+                type="text"
                 value={formData.encarregado_id}
                 onChange={(e) => setFormData({ ...formData, encarregado_id: e.target.value })}
                 className="input-field"
@@ -529,8 +700,8 @@ const Alunos = () => {
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => setShowModal(false)}
               className="btn-secondary"
             >
@@ -543,8 +714,253 @@ const Alunos = () => {
         </form>
       </Modal>
 
-      <Modal 
-        isOpen={!!selectedAluno} 
+      <Modal
+        isOpen={!!estadoModal}
+        onClose={() => { if (!processando) setEstadoModal(null); }}
+        title={estadoModal ? ACCOES_ESTADO[estadoModal.acao].titulo : ''}
+      >
+        {estadoModal && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {ACCOES_ESTADO[estadoModal.acao].descricao}
+            </p>
+            <div className="p-4 bg-gray-50 dark:bg-navy-800 rounded-2xl">
+              <p className="font-medium text-gray-900 dark:text-white">{estadoModal.aluno.nome_completo}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Nº {estadoModal.aluno.numero_estudante}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Encarregado: {estadoModal.aluno.encarregado_nome || '—'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Motivo / Observações
+              </label>
+              <textarea
+                rows={3}
+                value={estadoMotivo}
+                onChange={(e) => setEstadoMotivo(e.target.value)}
+                className="input-field resize-none"
+                placeholder="Descreva o motivo (opcional, mas recomendado para suspensão/expulsão)"
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button type="button" onClick={() => setEstadoModal(null)} className="btn-secondary" disabled={processando}>
+                Cancelar
+              </button>
+              <button
+                onClick={handleMudarEstado}
+                disabled={processando}
+                className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-medium disabled:opacity-50 ${ACCOES_ESTADO[estadoModal.acao].cor}`}
+              >
+                {processando && <Loader2 className="w-4 h-4 animate-spin" />}
+                {ACCOES_ESTADO[estadoModal.acao].botao}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!advertenciaAluno}
+        onClose={() => { if (!processando) setAdvertenciaAluno(null); }}
+        title="Emitir Advertência"
+      >
+        {advertenciaAluno && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              A advertência será registada no processo do aluno e o encarregado será notificado por SMS.
+            </p>
+            <div className="p-4 bg-gray-50 dark:bg-navy-800 rounded-2xl">
+              <p className="font-medium text-gray-900 dark:text-white">{advertenciaAluno.nome_completo}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Nº {advertenciaAluno.numero_estudante}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Tipo
+              </label>
+              <select
+                value={advertenciaForm.tipo}
+                onChange={(e) => setAdvertenciaForm({ ...advertenciaForm, tipo: e.target.value })}
+                className="input-field"
+              >
+                <option value="verbal">Verbal</option>
+                <option value="escrita">Escrita</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Motivo *
+              </label>
+              <textarea
+                rows={3}
+                value={advertenciaForm.motivo}
+                onChange={(e) => setAdvertenciaForm({ ...advertenciaForm, motivo: e.target.value })}
+                className="input-field resize-none"
+                placeholder="Descreva o comportamento/ocorrência"
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button type="button" onClick={() => setAdvertenciaAluno(null)} className="btn-secondary" disabled={processando}>
+                Cancelar
+              </button>
+              <button
+                onClick={handleAdvertencia}
+                disabled={processando || !advertenciaForm.motivo.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium disabled:opacity-50"
+              >
+                {processando && <Loader2 className="w-4 h-4 animate-spin" />}
+                Emitir Advertência
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!processoAluno}
+        onClose={() => { if (!processando) setProcessoAluno(null); }}
+        title="Processo Disciplinar"
+      >
+        {processoAluno && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Abre um processo disciplinar formal. O encarregado será notificado por SMS com o número do processo.
+            </p>
+            <div className="p-4 bg-gray-50 dark:bg-navy-800 rounded-2xl">
+              <p className="font-medium text-gray-900 dark:text-white">{processoAluno.nome_completo}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Nº {processoAluno.numero_estudante}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Motivo *
+              </label>
+              <textarea
+                rows={3}
+                value={processoForm.motivo}
+                onChange={(e) => setProcessoForm({ ...processoForm, motivo: e.target.value })}
+                className="input-field resize-none"
+                placeholder="Descreva o motivo do processo"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Medidas Aplicadas (opcional)
+              </label>
+              <textarea
+                rows={3}
+                value={processoForm.medidas}
+                onChange={(e) => setProcessoForm({ ...processoForm, medidas: e.target.value })}
+                className="input-field resize-none"
+                placeholder="Ex.: suspensão preventiva, trabalho comunitário..."
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button type="button" onClick={() => setProcessoAluno(null)} className="btn-secondary" disabled={processando}>
+                Cancelar
+              </button>
+              <button
+                onClick={handleProcesso}
+                disabled={processando || !processoForm.motivo.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium disabled:opacity-50"
+              >
+                {processando && <Loader2 className="w-4 h-4 animate-spin" />}
+                Abrir Processo
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!historicoAluno}
+        onClose={() => { if (!processando) setHistoricoAluno(null); }}
+        title="Histórico Disciplinar"
+        size="lg"
+      >
+        {historicoAluno && (
+          <div className="space-y-5">
+            <div className="p-4 bg-gray-50 dark:bg-navy-800 rounded-2xl">
+              <p className="font-medium text-gray-900 dark:text-white">{historicoAluno.nome_completo}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Nº {historicoAluno.numero_estudante} • Estado: <StatusChip status={historicoAluno.estado} /></p>
+            </div>
+
+            {(historicoAluno.processos_disciplinares || []).length > 0 && (
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Processos Disciplinares</h4>
+                <div className="space-y-2">
+                  {historicoAluno.processos_disciplinares.map((p, i) => (
+                    <div key={i} className="p-3 bg-gray-50 dark:bg-navy-800 rounded-2xl">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className="font-medium text-gray-900 dark:text-white text-sm">{p.numero}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.estado === 'aberto' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                          {p.estado === 'aberto' ? 'Aberto' : 'Encerrado'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{p.motivo}</p>
+                      {p.medidas && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Medidas: {p.medidas}</p>}
+                      {p.decisao && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Decisão: {p.decisao}</p>}
+                      <p className="text-xs text-gray-400 mt-1">Aberto em {formatData(p.data_abertura)} • por {p.autor}</p>
+                      {p.estado === 'aberto' && (
+                        <button
+                          onClick={() => handleEncerrarProcesso(p)}
+                          disabled={processando}
+                          className="mt-2 text-xs px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium disabled:opacity-50"
+                        >
+                          {processando ? 'A processar...' : 'Encerrar Processo'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(historicoAluno.advertencias || []).length > 0 && (
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Advertências</h4>
+                <div className="space-y-2">
+                  {historicoAluno.advertencias.map((a, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-2xl">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">{a.tipo}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{a.motivo}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{formatData(a.data)} • por {a.autor}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(historicoAluno.historico_disciplinar || []).length > 0 && (
+              <div>
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Histórico</h4>
+                <div className="space-y-2">
+                  {[...historicoAluno.historico_disciplinar].reverse().map((h, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-navy-800 rounded-2xl">
+                      <History className="w-4 h-4 text-primary-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{h.descricao}</p>
+                        {h.motivo && <p className="text-sm text-gray-600 dark:text-gray-400">{h.motivo}</p>}
+                        {h.estado_anterior && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{h.estado_anterior} → {h.estado_novo}</p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-0.5">{formatData(h.data)} • por {h.autor}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(!historicoAluno.historico_disciplinar?.length && !historicoAluno.advertencias?.length && !historicoAluno.processos_disciplinares?.length) && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Sem registos disciplinares.</p>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!selectedAluno}
         onClose={() => setSelectedAluno(null)}
         title="Detalhes do Aluno"
         size="lg"
@@ -562,7 +978,7 @@ const Alunos = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Data de Nascimento</p>
-                <p className="font-medium text-gray-900 dark:text-white">{new Date(selectedAluno.data_nascimento).toLocaleDateString('pt-BR')}</p>
+                <p className="font-medium text-gray-900 dark:text-white">{formatData(selectedAluno.data_nascimento)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Sexo</p>

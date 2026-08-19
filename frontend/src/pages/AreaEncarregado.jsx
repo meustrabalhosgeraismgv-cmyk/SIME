@@ -7,7 +7,7 @@ import {
   CheckCircle, XCircle, Clock, Calendar, RefreshCw, BookOpen,
   AlertCircle, HeartHandshake
 } from 'lucide-react';
-import { solicitacaoService, matriculaService, instituicaoService, cursoService, authService } from '../services/api';
+import { solicitacaoService, matriculaService, instituicaoService, cursoService, authService, alunoService, classificacaoService } from '../services/api';
 import { connectSocket, getSocket } from '../services/socketClient';
 
 const ESTADO_CONFIG = {
@@ -26,6 +26,9 @@ const AreaEncarregado = () => {
   const [perfil, setPerfil] = useState(null);
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [matriculas, setMatriculas] = useState([]);
+  const [filhosBoletim, setFilhosBoletim] = useState([]);
+  const [boletins, setBoletins] = useState({});
+  const [boletimAberto, setBoletimAberto] = useState({});
   const [escolas, setEscolas] = useState([]);
   const [cursos, setCursos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,16 +48,28 @@ const AreaEncarregado = () => {
 
   const loadAll = useCallback(async () => {
     try {
-      const [perfilRes, solRes, matRes, escolaRes] = await Promise.all([
+      const [perfilRes, solRes, matRes, escolaRes, filhosRes] = await Promise.all([
         authService.getPerfilCompleto().catch(() => null),
         solicitacaoService.getEncarregado().catch(() => ({ data: { data: [] } })),
         matriculaService.getEncarregado().catch(() => ({ data: { data: [] } })),
         instituicaoService.getAll({ limit: 100 }).catch(() => ({ data: { data: [] } })),
+        alunoService.getFilhos().catch(() => ({ data: { data: [] } })),
       ]);
       setPerfil(perfilRes?.data || null);
       setSolicitacoes(solRes.data.data || []);
       setMatriculas(matRes.data.data || []);
       setEscolas(escolaRes.data.data || []);
+      setFilhosBoletim(filhosRes.data.data || []);
+
+      const mapaBoletins = {};
+      for (const filho of filhosRes.data.data || []) {
+        if (filho.id) {
+          mapaBoletins[filho.id] = await classificacaoService.getHistorico(filho.id)
+            .then(r => r.data?.historico || [])
+            .catch(() => []);
+        }
+      }
+      setBoletins(mapaBoletins);
 
       const escolaParam = searchParams.get('escola');
       if (escolaParam) {
@@ -344,6 +359,81 @@ const AreaEncarregado = () => {
             </div>
           )}
         </div>
+
+        {/* Boletim Escolar */}
+        {filhosBoletim.length > 0 && (
+          <div className={`${card} border rounded-2xl overflow-hidden`}>
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-navy-700 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-primary-500" />
+              <h2 className={`text-lg font-semibold ${text}`}>Boletim Escolar dos Meus Educandos</h2>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-navy-700">
+              {filhosBoletim.map(filho => {
+                const lista = filho.classificacoes || boletins[filho.id] || [];
+                const isOpen = !!boletimAberto[filho.id];
+                const maisRecente = lista[0];
+                return (
+                  <div key={filho.id} className="p-4">
+                    <button
+                      onClick={() => setBoletimAberto(prev => ({ ...prev, [filho.id]: !prev[filho.id] }))}
+                      className="w-full flex items-start justify-between gap-4 text-left"
+                    >
+                      <div>
+                        <p className={`font-semibold ${text}`}>{filho.nome_completo}</p>
+                        <p className={`text-sm ${subtext}`}>Nº {filho.numero_estudante}</p>
+                        {maisRecente && (
+                          <p className={`mt-1 text-xs ${subtext}`}>
+                            Último boletim: <span className="font-medium text-primary-500 capitalize">{maisRecente.classe}</span> •{' '}
+                            média <span className={`font-bold ${parseFloat(maisRecente.media_geral) >= 10 ? 'text-green-600' : 'text-red-500'}`}>
+                              {parseFloat(maisRecente.media_geral).toFixed(1)}
+                            </span> •{' '}
+                            <span className={maisRecente.estado === 'aprovado' ? 'text-green-600' : 'text-red-500'}>
+                              {maisRecente.estado === 'aprovado' ? 'Aprovado' : 'Reprovado'}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${isOpen ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {isOpen ? 'Fechar' : `${lista.length} boletim(ins)`}
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div className="mt-3 space-y-3">
+                        {lista.length === 0 && (
+                          <p className={`text-sm ${subtext}`}>Sem boletins lançados pela instituição.</p>
+                        )}
+                        {lista.map((c, i) => (
+                          <div key={i} className="p-4 bg-gray-50 dark:bg-navy-800 rounded-2xl">
+                            <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                              <p className={`font-medium capitalize ${text}`}>{c.classe} • {c.ano_letivo} • {String(c.periodo || 'anual').replace('_', ' ')}</p>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.estado === 'aprovado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {c.estado === 'aprovado' ? 'Aprovado' : 'Reprovado'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {(c.disciplinas || []).map((d, di) => (
+                                <div key={di} className="flex items-center justify-between px-3 py-1.5 bg-white dark:bg-navy-700 rounded-lg">
+                                  <span className="text-xs text-gray-600 dark:text-gray-300">{d.nome}</span>
+                                  <span className={`text-xs font-bold ${parseFloat(d.nota ?? d.nota_final) >= 10 ? 'text-green-600' : 'text-red-500'}`}>
+                                    {parseFloat(d.nota ?? d.nota_final).toFixed(1)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="mt-2 text-sm font-bold text-gray-900 dark:text-white">
+                              Média Final: <span className={parseFloat(c.media_geral) >= 10 ? 'text-green-600' : 'text-red-500'}>{parseFloat(c.media_geral).toFixed(1)}</span>
+                            </p>
+                            {c.observacoes && <p className={`mt-1 text-xs ${subtext}`}>{c.observacoes}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Solicitações */}
         <div className={`${card} border rounded-2xl overflow-hidden`}>

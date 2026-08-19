@@ -11,7 +11,9 @@ const getTurmas = async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     const matchStage = {};
-    if (instituicao_id) {
+    if (req.user?.perfil === 'instituicao') {
+      matchStage.instituicao_id = matchInstituicaoId(req.user.entidade_id);
+    } else if (instituicao_id) {
       matchStage.instituicao_id = matchInstituicaoId(instituicao_id);
     }
     if (ano_letivo) {
@@ -41,6 +43,7 @@ const getTurmas = async (req, res) => {
       { $unwind: { path: '$professor', preserveNullAndEmptyArrays: true } },
       {
         $project: {
+          id: { $toString: '$_id' },
           _id: 1,
           nome: 1,
           ano_letivo: 1,
@@ -93,6 +96,7 @@ const getTurmaById = async (req, res) => {
       { $unwind: { path: '$professor', preserveNullAndEmptyArrays: true } },
       {
         $project: {
+          id: { $toString: '$_id' },
           _id: 1,
           nome: 1,
           ano_letivo: 1,
@@ -130,6 +134,7 @@ const getTurmaById = async (req, res) => {
       { $unwind: { path: '$matricula', preserveNullAndEmptyArrays: false } },
       {
         $project: {
+          id: { $toString: '$_id' },
           _id: 1,
           nome_completo: 1,
           data_nascimento: 1,
@@ -152,6 +157,10 @@ const createTurma = async (req, res) => {
   try {
     const db = getDB();
     const { nome, ano_letivo, nivel, instituicao_id, professor_titular_id, vagas } = req.body;
+
+    if (req.user?.perfil === 'instituicao' && String(instituicao_id) !== String(req.user.entidade_id)) {
+      return res.status(403).json({ error: 'Só pode criar turmas na sua instituição' });
+    }
 
     const result = await db.collection('turmas').insertOne({
       nome,
@@ -177,6 +186,12 @@ const updateTurma = async (req, res) => {
     const { id } = req.params;
     const { nome, ano_letivo, nivel, instituicao_id, professor_titular_id, vagas } = req.body;
 
+    const turma = await db.collection('turmas').findOne({ _id: new ObjectId(id) });
+    if (!turma) return res.status(404).json({ error: 'Turma não encontrada' });
+    if (req.user?.perfil === 'instituicao' && String(turma.instituicao_id) !== String(req.user.entidade_id)) {
+      return res.status(403).json({ error: 'Sem permissão para editar esta turma' });
+    }
+
     const updateData = {
       nome,
       ano_letivo,
@@ -201,6 +216,12 @@ const deleteTurma = async (req, res) => {
   try {
     const db = getDB();
     const { id } = req.params;
+
+    const turma = await db.collection('turmas').findOne({ _id: new ObjectId(id) });
+    if (!turma) return res.status(404).json({ error: 'Turma não encontrada' });
+    if (req.user?.perfil === 'instituicao' && String(turma.instituicao_id) !== String(req.user.entidade_id)) {
+      return res.status(403).json({ error: 'Sem permissão para remover esta turma' });
+    }
 
     await db.collection('turmas').deleteOne({ _id: new ObjectId(id) });
     res.json({ message: 'Turma removida com sucesso' });

@@ -1,5 +1,7 @@
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
+const { oid } = require('../utils/filters');
+const { enviarSMS } = require('./smsController');
 
 const CLASSES = ['1a', '2a', '3a', '4a', '5a', '6a', '7a', '8a', '9a', '10a', '11a', '12a', '13a'];
 
@@ -114,6 +116,8 @@ const createClassificacao = async (req, res) => {
         : 0;
     }
 
+    const estadoFinal = estado || (media >= 10 ? 'aprovado' : 'reprovado');
+
     const result = await db.collection('classificacoes').insertOne({
       aluno_id: new ObjectId(aluno_id),
       classe,
@@ -122,12 +126,32 @@ const createClassificacao = async (req, res) => {
       periodo: periodo || 'anual',
       disciplinas: disciplinas || [],
       media_geral: media || 0,
-      estado: estado || (media >= 10 ? 'aprovado' : 'reprovado'),
+      estado: estadoFinal,
       observacoes: observacoes || '',
       created_at: new Date()
     });
 
-    res.status(201).json({ id: result.insertedId.toString(), message: 'Classificação registada' });
+    try {
+      const aluno = await db.collection('alunos').findOne({ _id: oid(aluno_id) });
+      if (aluno?.encarregado_id) {
+        const encarregado = await db.collection('encarregados').findOne({ _id: oid(aluno.encarregado_id) });
+        if (encarregado?.telefone) {
+          const situacao = estadoFinal === 'aprovado' ? 'APROVADO' : estadoFinal === 'reprovado' ? 'REPROVADO' : estadoFinal;
+          await enviarSMS({
+            telefone: encarregado.telefone,
+            mensagem: `[SIME] Boletim do educando ${aluno.nome_completo} — ${classe} • ${periodo || 'anual'}${ano_letivo ? ' ' + ano_letivo : ''}: média ${media || 0}. Situação: ${situacao}. Consulte o portal SIME.`,
+            destinatario_id: aluno.encarregado_id,
+            destinatario_tipo: 'encarregado',
+            tipo: 'sistema',
+            criado_por: req.user.id
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao notificar encarregado do boletim:', err.message);
+    }
+
+    res.status(201).json({ id: result.insertedId.toString(), message: 'Classificação registada e comunicada ao encarregado' });
   } catch (error) {
     console.error('Erro ao criar classificação:', error);
     res.status(500).json({ error: 'Erro ao criar classificação' });

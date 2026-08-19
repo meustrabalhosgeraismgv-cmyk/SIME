@@ -54,25 +54,11 @@ const Dashboard = () => {
     { name: 'Disponiveis', value: stats?.vagas?.vagas_disponiveis || 0, fill: '#4CAF50' }
   ];
 
-  const matriculasData = [
-    { name: 'Jan', total: 1200 }, { name: 'Fev', total: 1350 }, { name: 'Mar', total: 1500 },
-    { name: 'Abr', total: 1650 }, { name: 'Mai', total: 1800 }, { name: 'Jun', total: 1950 }
-  ];
+  const matriculasData = stats?.matriculas_por_mes || [];
 
-  const escolasBarData = [
-    { name: 'ES Luanda', ocupadas: 560, disponiveis: 240 },
-    { name: 'EP Centro', ocupadas: 420, disponiveis: 180 },
-    { name: 'IT Benguela', ocupadas: 280, disponiveis: 120 },
-    { name: 'ES Huambo', ocupadas: 490, disponiveis: 210 },
-    { name: 'EP Lubango', ocupadas: 350, disponiveis: 150 }
-  ];
+  const escolasBarData = stats?.vagas_por_instituicao || [];
 
-  const calendarEvents = [
-    { date: '15/09', title: 'Inicio das aulas', type: 'info' },
-    { date: '20/10', title: '1o Periodo', type: 'event' },
-    { date: '15/12', title: 'Ferias', type: 'warning' },
-    { date: '05/01', title: 'Regresso', type: 'info' },
-  ];
+  const calendarEvents = stats?.eventos_calendario || [];
 
   const quickActions = [
     { icon: Search, label: 'Pesquisar Escolas', path: '/app/pesquisar-escolas', color: 'bg-primary-500' },
@@ -253,7 +239,7 @@ const Dashboard = () => {
               <XAxis dataKey="name" stroke="#6B7280" fontSize={12} />
               <YAxis stroke="#6B7280" fontSize={12} />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="total" stroke="#2196F3" strokeWidth={2.5} fillOpacity={1} fill="url(#colorTotal)" name="Matriculas" />
+              <Area type="monotone" dataKey="matriculas" stroke="#2196F3" strokeWidth={2.5} fillOpacity={1} fill="url(#colorTotal)" name="Matriculas" />
             </AreaChart>
           </ResponsiveContainer>
         </div>

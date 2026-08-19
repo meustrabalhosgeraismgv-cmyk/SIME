@@ -35,6 +35,7 @@ const getProfessores = async (req, res) => {
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       {
         $project: {
+          id: { $toString: '$_id' },
           _id: 1,
           nome_completo: 1,
           bi: 1,
@@ -79,6 +80,7 @@ const getProfessorById = async (req, res) => {
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       {
         $project: {
+          id: { $toString: '$_id' },
           _id: 1,
           nome_completo: 1,
           bi: 1,

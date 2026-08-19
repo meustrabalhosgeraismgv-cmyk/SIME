@@ -86,7 +86,12 @@ export const alunoService = {
   getById: (id) => api.get(`/alunos/${id}`),
   create: (data) => api.post('/alunos', data),
   update: (id, data) => api.put(`/alunos/${id}`, data),
-  delete: (id) => api.delete(`/alunos/${id}`)
+  delete: (id) => api.delete(`/alunos/${id}`),
+  getFilhos: () => api.get('/alunos/filhos'),
+  mudarEstado: (id, data) => api.put(`/alunos/${id}/estado`, data),
+  emitirAdvertencia: (id, data) => api.post(`/alunos/${id}/advertencias`, data),
+  abrirProcesso: (id, data) => api.post(`/alunos/${id}/processos`, data),
+  encerrarProcesso: (id, procId, data) => api.put(`/alunos/${id}/processos/${procId}`, data),
 };
 
 export const professorService = {

@@ -54,6 +54,7 @@ const getMatriculas = async (req, res) => {
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       {
         $project: {
+          id: { $toString: '$_id' },
           _id: 1,
           aluno_id: 1,
           turma_id: 1,
@@ -227,6 +228,11 @@ const createMatriculaEncarregado = async (req, res) => {
       }
     }
 
+    const instituicao = await db.collection('instituicoes').findOne({ _id: matchId(instituicaoId) });
+    if (instituicao && (instituicao.vagas_totais || 0) > 0 && (instituicao.vagas_disponiveis || 0) <= 0) {
+      return res.status(400).json({ error: 'Esta instituição já não tem vagas disponíveis' });
+    }
+
     const matriculaResult = await db.collection('matriculas').insertOne({
       aluno_id: aluno._id,
       encarregado_id: encarregadoId,
@@ -243,6 +249,13 @@ const createMatriculaEncarregado = async (req, res) => {
     if (curso_id) {
       await db.collection('cursos').updateOne(
         { _id: curso_id },
+        { $inc: { vagas_disponiveis: -1 } }
+      );
+    }
+
+    if (instituicao && (instituicao.vagas_totais || 0) > 0 && (instituicao.vagas_disponiveis || 0) > 0) {
+      await db.collection('instituicoes').updateOne(
+        { _id: matchId(instituicaoId), vagas_disponiveis: { $gt: 0 } },
         { $inc: { vagas_disponiveis: -1 } }
       );
     }

@@ -62,6 +62,7 @@ const Sidebar = () => {
       items: [
         { icon: FolderOpen, label: 'Ficheiros Escolares', path: '/app/ficheiros-escolares' },
         { icon: UserCog, label: 'Recursos Humanos', path: '/app/recursos-humanos' },
+        { icon: ClipboardList, label: 'Classificações / Pautas', path: '/app/classificacoes' },
       ]
     },
     {
@@ -96,6 +97,7 @@ const Sidebar = () => {
         { icon: Users, label: 'Gerir Alunos', path: '/app/alunos' },
         { icon: GraduationCap, label: 'Gerir Professores', path: '/app/professores' },
         { icon: ClipboardList, label: 'Matrículas', path: '/app/matriculas' },
+        { icon: BookOpen, label: 'Classificações / Pautas', path: '/app/classificacoes' },
       ]
     },
     {
@@ -117,6 +119,7 @@ const Sidebar = () => {
       items: [
         { icon: Newspaper, label: 'Gerir Notícias', path: '/app/noticias-instituicao' },
         { icon: Bell, label: 'Comunicados', path: '/app/comunicados' },
+        { icon: Smartphone, label: 'USSD / Códigos Rápidos', path: '/app/ussd' },
         { icon: MessageSquareText, label: 'SMS', path: '/app/sms' },
         { icon: MessageCircle, label: 'Mensagens', path: '/app/chat' },
         { icon: Settings, label: 'Gerir Perfil', path: '/app/gerir-perfil' },

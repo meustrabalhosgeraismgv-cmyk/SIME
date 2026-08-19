@@ -28,7 +28,7 @@ const getEncarregados = async (req, res) => {
       .toArray();
 
     res.json({
-      data: encarregados,
+      data: encarregados.map(e => ({ ...e, id: e._id.toString() })),
       pagination: {
         total,
         page: pageNum,
@@ -77,7 +77,7 @@ const getEncarregadoById = async (req, res) => {
       }
     ]).toArray();
 
-    res.json({ ...encarregado, alunos });
+    res.json({ ...encarregado, id: encarregado._id.toString(), alunos });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar encarregado' });
   }

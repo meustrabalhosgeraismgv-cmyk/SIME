@@ -79,6 +79,48 @@ const getDashboardStats = async (req, res) => {
       .limit(5)
       .toArray();
 
+    const anoAtual = new Date().getFullYear();
+    const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+    const [matriculasPorMesAgg, alunosPorMesAgg, vagasPorInstituicao, eventosCalendario] = await Promise.all([
+      db.collection('matriculas').aggregate([
+        { $match: { data_matricula: { $exists: true, $ne: null } } },
+        { $project: { mes: { $month: '$data_matricula' }, ano: { $year: '$data_matricula' } } },
+        { $group: { _id: { mes: '$mes', ano: '$ano' }, total: { $sum: 1 } } }
+      ]).toArray(),
+      db.collection('alunos').aggregate([
+        { $match: { created_at: { $exists: true, $ne: null } } },
+        { $project: { mes: { $month: '$created_at' }, ano: { $year: '$created_at' } } },
+        { $group: { _id: { mes: '$mes', ano: '$ano' }, total: { $sum: 1 } } }
+      ]).toArray(),
+      db.collection('instituicoes').aggregate([
+        { $match: { vagas_totais: { $gt: 0 } } },
+        { $sort: { vagas_disponiveis: 1 } },
+        { $limit: 8 },
+        {
+          $project: {
+            name: '$nome',
+            ocupadas: { $subtract: ['$vagas_totais', '$vagas_disponiveis'] },
+            disponiveis: '$vagas_disponiveis'
+          }
+        }
+      ]).toArray(),
+      db.collection('calendario')
+        .find({ data_inicio: { $gte: new Date() } })
+        .sort({ data_inicio: 1 })
+        .limit(4)
+        .toArray()
+    ]);
+
+    const serieMensal = (arr, chave) => {
+      const mapa = new Map(arr.map(x => [`${x._id.ano}-${x._id.mes}`, x.total]));
+      const serie = [];
+      for (let m = 1; m <= 12; m++) {
+        serie.push({ name: mesesNomes[m - 1], [chave]: mapa.get(`${anoAtual}-${m}`) || 0 });
+      }
+      return serie;
+    };
+
     res.json({
       resumo: {
         total_instituicoes: totalInstituicoes,
@@ -91,7 +133,15 @@ const getDashboardStats = async (req, res) => {
       alunos_por_genero: alunosPorGenero,
       vagas: vagas,
       ultimas_matriculas: ultimasMatriculas,
-      alertas_recentes: alertasRecentes
+      alertas_recentes: alertasRecentes,
+      matriculas_por_mes: serieMensal(matriculasPorMesAgg, 'matriculas'),
+      alunos_por_mes: serieMensal(alunosPorMesAgg, 'alunos'),
+      vagas_por_instituicao: vagasPorInstituicao,
+      eventos_calendario: eventosCalendario.map(e => ({
+        data: new Date(e.data_inicio).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }),
+        titulo: e.titulo,
+        tipo: e.tipo
+      }))
     });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar estatísticas do dashboard' });
