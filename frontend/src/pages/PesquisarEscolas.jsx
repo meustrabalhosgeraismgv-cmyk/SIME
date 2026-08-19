@@ -149,8 +149,8 @@ const PesquisarEscolas = () => {
               const vagasStatus = getVagasStatus(escola);
               const ocupacaoPct = getOcupacaoPercent(escola.vagas_totais, escola.vagas_disponiveis);
               return (
-                <div key={escola.id} className="card card-hover cursor-pointer group"
-                  onClick={() => navigate('/app/instituicoes/' + escola.id)}>
+                <div key={escola._id || escola.id} className="card card-hover cursor-pointer group"
+                  onClick={() => navigate('/app/instituicoes/' + (escola._id || escola.id))}>
                   <EscolaBanner escola={escola} />
 
                   <div className="flex items-start justify-between mb-3">

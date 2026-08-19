@@ -321,6 +321,7 @@ export default function MapaAngola({ escolas = [], compact = false, onSelectEsco
       }
 
       const status = getVagasStatus(escola);
+      const escolaId = escola._id || escola.id;
       const marker = L.marker([lat, lng], { icon: getMarkerIcon(status) }).addTo(map);
 
       const tipoLabel = escola.tipo === 'pre_escolar' ? 'Ensino Pré-Escolar' :
@@ -344,13 +345,13 @@ export default function MapaAngola({ escolas = [], compact = false, onSelectEsco
             </div>
           </div>
           <div style="display:flex;gap:6px;margin-top:8px;">
-            <button onclick="window.__sime_select_escola && window.__sime_select_escola(${escola.id})" style="flex:1;padding:6px;background:#0061a4;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Ver Detalhes</button>
-            <button onclick="window.__sime_route_escola && window.__sime_route_escola(${escola.id})" style="padding:6px 10px;background:#4CAF50;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <button onclick="window.__sime_select_escola && window.__sime_select_escola('${escolaId}')" style="flex:1;padding:6px;background:#0061a4;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Ver Detalhes</button>
+            <button onclick="window.__sime_route_escola && window.__sime_route_escola('${escolaId}')" style="padding:6px 10px;background:#4CAF50;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
               Rota
             </button>
           </div>
-          <button onclick="window.__sime_solicitar_vaga && window.__sime_solicitar_vaga(${escola.id}, '${escola.nome.replace(/'/g, "\\'")}')" style="width:100%;margin-top:6px;padding:6px;background:#FF9800;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Solicitar Vagas</button>
+          <button onclick="window.__sime_solicitar_vaga && window.__sime_solicitar_vaga('${escolaId}', '${escola.nome.replace(/'/g, "\\'")}')" style="width:100%;margin-top:6px;padding:6px;background:#FF9800;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Solicitar Vagas</button>
         </div>
       `, { maxWidth: 280 });
 
@@ -370,13 +371,13 @@ export default function MapaAngola({ escolas = [], compact = false, onSelectEsco
 
   useEffect(() => {
     window.__sime_select_escola = (id) => {
-      const escola = escolas.find(e => e.id === id);
+      const escola = escolas.find(e => (e._id || e.id) === id);
       if (escola && onSelectEscola) {
         onSelectEscola(escola);
       }
     };
     window.__sime_route_escola = (id) => {
-      const escola = escolas.find(e => e.id === id);
+      const escola = escolas.find(e => (e._id || e.id) === id);
       if (escola) startRouting(escola);
     };
     window.__sime_solicitar_vaga = (id, nome) => {
@@ -440,7 +441,7 @@ export default function MapaAngola({ escolas = [], compact = false, onSelectEsco
               <div className="mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-64 overflow-y-auto">
                 {searchResults.map((escola) => (
                   <button
-                    key={escola.id}
+                    key={escola._id || escola.id}
                     onClick={() => handleSelectResult(escola)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 text-left border-b border-gray-100 last:border-0 group"
                   >

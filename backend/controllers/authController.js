@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
+const { matchInstituicaoId } = require('../utils/filters');
 
 const login = async (req, res) => {
   try {
@@ -37,7 +38,9 @@ const login = async (req, res) => {
         username: usuario.username,
         perfil: usuario.perfil,
         is_gestor: !!usuario.is_gestor,
-        nome: usuario.nome
+        nome: usuario.nome,
+        entidade_id: usuario.entidade_id,
+        entidade_tipo: usuario.entidade_tipo
       }
     });
   } catch (error) {
@@ -48,7 +51,7 @@ const login = async (req, res) => {
 
 const register = async (req, res) => {
   try {
-    const { username, password, perfil, nome, email, telefone, instituicao_nome, instituicao_municipio, instituicao_tipo } = req.body;
+    const { username, password, perfil, nome, email, telefone, bi, instituicao_nome, instituicao_municipio, instituicao_tipo } = req.body;
     if (!username || !password || !perfil) {
       return res.status(400).json({ error: 'Username, password e perfil são obrigatórios' });
     }
@@ -104,9 +107,31 @@ const register = async (req, res) => {
 
       res.status(201).json({ message: 'Conta de instituição criada com sucesso. Aguarde aprovação do administrador.', id: result.insertedId });
     } else if (perfil === 'encarregado') {
+      const telefoneEnc = telefone || null;
+      const biEnc = bi || null;
+
+      if (biEnc || telefoneEnc) {
+        const existente = await db.collection('encarregados').findOne({
+          $or: [{ bi: biEnc }, { telefone: telefoneEnc }]
+        });
+        if (existente) {
+          return res.status(400).json({ error: 'Já existe um encarregado com este BI ou telefone' });
+        }
+      }
+
+      const encResult = await db.collection('encarregados').insertOne({
+        nome_completo: nome || username,
+        telefone: telefoneEnc,
+        bi: biEnc,
+        email: email || null,
+        endereco: null,
+        created_at: new Date()
+      });
+
       const result = await db.collection('usuarios').insertOne({
         username, password: hashedPassword, perfil, nome: nome || null, email: email || null,
-        telefone: telefone || null, is_gestor: false, entidade_id: null, entidade_tipo: null,
+        telefone: telefoneEnc, is_gestor: false, entidade_id: encResult.insertedId.toString(),
+        entidade_tipo: 'encarregado',
         aprovado: false, foto: null, created_at: new Date()
       });
       res.status(201).json({ message: 'Conta criada com sucesso. Aguarde a aprovação do administrador antes de aceder ao sistema.', id: result.insertedId.toString() });
@@ -164,12 +189,13 @@ const getPerfilCompleto = async (req, res) => {
         total_usuarios: usuarios
       };
     } else if (user.perfil === 'instituicao' && user.entidade_id) {
+      const instFilter = matchInstituicaoId(user.entidade_id);
       const [professores, alunos, turmas, vagas, solicitacoes] = await Promise.all([
-        db.collection('professores').find({ instituicao_id: user.entidade_id }).project({ nome_completo: 1, especialidade: 1, estado: 1 }).toArray(),
-        db.collection('alunos').find({ instituicao_id: user.entidade_id }).project({ nome_completo: 1, numero_estudante: 1, estado: 1 }).toArray(),
-        db.collection('turmas').find({ instituicao_id: user.entidade_id }).project({ nome: 1, nivel: 1, vagas: 1, vagas_ocupadas: 1 }).toArray(),
+        db.collection('professores').find({ instituicao_id: instFilter }).project({ nome_completo: 1, especialidade: 1, estado: 1 }).toArray(),
+        db.collection('alunos').find({ instituicao_id: instFilter }).project({ nome_completo: 1, numero_estudante: 1, estado: 1 }).toArray(),
+        db.collection('turmas').find({ instituicao_id: instFilter }).project({ nome: 1, nivel: 1, vagas: 1, vagas_ocupadas: 1 }).toArray(),
         db.collection('instituicoes').findOne({ _id: new ObjectId(user.entidade_id) }, { projection: { vagas_totais: 1, vagas_disponiveis: 1 } }),
-        db.collection('solicitacoes').countDocuments({ instituicao_id: user.entidade_id, estado: 'pendente' })
+        db.collection('solicitacoes').countDocuments({ instituicao_id: instFilter, estado: 'pendente' })
       ]);
       dadosVinculados = {
         professores, alunos, turmas,
@@ -181,7 +207,8 @@ const getPerfilCompleto = async (req, res) => {
         db.collection('alunos').aggregate([
           { $match: { encarregado_id: user.entidade_id } },
           { $lookup: { from: 'instituicoes', localField: 'instituicao_id', foreignField: '_id', as: 'inst' } },
-          { $project: { nome_completo: 1, numero_estudante: 1, estado: 1, instituicao_nome: { $arrayElemAt: ['$inst.nome', 0] } } }
+          { $addFields: { id: { $toString: '$_id' } } },
+          { $project: { nome_completo: 1, numero_estudante: 1, estado: 1, necessidades_especiais: 1, id: 1, instituicao_nome: { $arrayElemAt: ['$inst.nome', 0] } } }
         ]).toArray(),
         db.collection('solicitacoes').aggregate([
           { $match: { encarregado_id: user.entidade_id } },

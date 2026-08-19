@@ -15,7 +15,7 @@ const SolicitacoesGestor = () => {
   const fetchSolicitacoes = async () => {
     try {
       const res = await fetch('/api/solicitacoes/gestor', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('sime_token')}` }
       });
       const data = await res.json();
       setSolicitacoes(data.data || []);
@@ -28,7 +28,7 @@ const SolicitacoesGestor = () => {
     try {
       await fetch(`/api/solicitacoes/${id}/${action}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('sime_token')}` },
         body: JSON.stringify({ observacoes: '' })
       });
       fetchSolicitacoes();

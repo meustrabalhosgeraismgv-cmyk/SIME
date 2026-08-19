@@ -6,7 +6,7 @@ import {
   Globe, ChevronDown, ChevronUp, School, Stethoscope
 } from 'lucide-react';
 import Loading from '../../components/Loading';
-import { instituicaoService, solicitacaoService, cursoService, informacoesService, taxaReservaService } from '../../services/api';
+import { instituicaoService, solicitacaoService, cursoService, informacoesService, taxaReservaService, documentoService } from '../../services/api';
 
 const COLORS = {
   primaryBlue: '#2196F3', darkBlue: '#0D47A1', white: '#FFFFFF',
@@ -64,6 +64,7 @@ export default function PublicDetalheEscola() {
   const [turmas, setTurmas] = useState([]);
   const [info, setInfo] = useState(null);
   const [taxaData, setTaxaData] = useState(null);
+  const [documentos, setDocumentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showSolicitacao, setShowSolicitacao] = useState(false);
@@ -74,7 +75,8 @@ export default function PublicDetalheEscola() {
   const [showProcs, setShowProcs] = useState(false);
   const [form, setForm] = useState({
     aluno_nome: '', aluno_data_nascimento: '', aluno_sexo: 'M',
-    curso_id: '', provincia_origem: 'Huambo', municipio_origem: 'Huambo'
+    curso_id: '', provincia_origem: 'Huambo', municipio_origem: 'Huambo',
+    necessidades_especiais: ''
   });
 
   const isLoggedIn = !!localStorage.getItem('sime_token');
@@ -94,12 +96,13 @@ export default function PublicDetalheEscola() {
     async function fetchData() {
       try {
         setLoading(true);
-        const [escolaRes, statsRes, cursosRes, turmasRes, infoRes] = await Promise.all([
+        const [escolaRes, statsRes, cursosRes, turmasRes, infoRes, docsRes] = await Promise.all([
           instituicaoService.getById(id),
           instituicaoService.getEstatisticas(id).catch(() => null),
           cursoService.getByInstituicao(id).catch(() => ({ data: { data: [] } })),
           cursoService.getByInstituicao(id).catch(() => ({ data: { data: [] } })),
           informacoesService.getByInstituicao(id).catch(() => null),
+          documentoService.getAll({ instituicao_id: id, limit: 50 }).catch(() => ({ data: { data: [] } })),
         ]);
         setEscola(escolaRes.data);
         setEstatisticas(statsRes?.data || null);
@@ -107,6 +110,7 @@ export default function PublicDetalheEscola() {
         setCursos(allItems.filter(c => c.tipo === 'curso'));
         setTurmas(allItems.filter(c => c.tipo === 'turma'));
         setInfo(infoRes?.data || null);
+        setDocumentos(docsRes?.data?.data || []);
       } catch (err) {
         setError('Erro ao carregar dados da instituição.');
       } finally {
@@ -144,7 +148,8 @@ export default function PublicDetalheEscola() {
         aluno_nome: form.aluno_nome,
         aluno_data_nascimento: form.aluno_data_nascimento || null,
         aluno_sexo: form.aluno_sexo,
-        curso_id: form.curso_id || null
+        curso_id: form.curso_id || null,
+        necessidades_especiais: form.necessidades_especiais || ''
       });
       setSolicitacaoSuccess(true);
     } catch (err) {
@@ -274,6 +279,48 @@ export default function PublicDetalheEscola() {
           </div>
         )}
 
+        {/* Anúncios, Editais e Documentos da Instituição */}
+        {documentos.length > 0 && (
+          <div style={{ backgroundColor: COLORS.white, borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: '1.5rem', overflow: 'hidden' }}>
+            <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${COLORS.grayBg}`, fontWeight: 600, color: COLORS.darkBlue, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={18} /> Anúncios, Editais e Documentos ({documentos.length})
+            </div>
+            <div style={{ padding: '1rem 1.5rem 1.25rem' }}>
+              {documentos.map((doc, i) => (
+                <div key={doc._id || doc.id || i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem 0', borderBottom: i < documentos.length - 1 ? `1px solid ${COLORS.grayBg}` : 'none' }}>
+                  <div style={{ flexShrink: 0, width: '2rem', height: '2rem', borderRadius: '0.5rem', backgroundColor: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.primaryBlue }}>
+                    <FileText size={16} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {doc.categoria_label || doc.categoria}
+                    </p>
+                    <p style={{ margin: '0.125rem 0 0', fontWeight: 600, color: '#1F2937', fontSize: '0.9375rem' }}>{doc.titulo}</p>
+                    {doc.descricao && <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#6B7280' }}>{doc.descricao}</p>}
+                    {(doc.referencia || doc.numero || doc.data_documento) && (
+                      <p style={{ margin: '0.375rem 0 0', fontSize: '0.75rem', color: '#9CA3AF' }}>
+                        {[doc.numero && `Nº ${doc.numero}`, doc.referencia && `Ref. ${doc.referencia}`, doc.data_documento ? new Date(doc.data_documento).toLocaleDateString('pt-PT') : null].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                  {doc.ficheiro_url && (
+                    <a href={doc.ficheiro_url} target="_blank" rel="noopener noreferrer"
+                      style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', borderRadius: '0.5rem', backgroundColor: COLORS.primaryBlue, color: COLORS.white, fontSize: '0.8125rem', fontWeight: 600, textDecoration: 'none' }}>
+                      <FileText size={14} /> Abrir
+                    </a>
+                  )}
+                  {doc.imagem_url && (
+                    <a href={doc.imagem_url} target="_blank" rel="noopener noreferrer"
+                      style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', borderRadius: '0.5rem', backgroundColor: '#E3F2FD', color: COLORS.darkBlue, fontSize: '0.8125rem', fontWeight: 600, textDecoration: 'none' }}>
+                      <CreditCard size={14} /> Imagem
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Informações da Instituição */}
         <div style={{ backgroundColor: COLORS.white, borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: '1.5rem' }}>
           <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${COLORS.grayBg}`, fontWeight: 600, color: COLORS.darkBlue, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -362,6 +409,10 @@ export default function PublicDetalheEscola() {
                   <input type="text" value={form.municipio_origem} onChange={(e) => setForm({ ...form, municipio_origem: e.target.value })} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #D1D5DB', fontSize: '0.875rem' }} />
                 </div>
               </div>
+              <div style={{ marginTop: '0.75rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, color: '#374151', marginBottom: '0.25rem' }}>Necessidades Educativas Especiais</label>
+                <input type="text" value={form.necessidades_especiais} onChange={(e) => setForm({ ...form, necessidades_especiais: e.target.value })} placeholder="Ex: deficiência motora, visual, auditiva, autismo... (se aplicável)" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #D1D5DB', fontSize: '0.875rem' }} />
+              </div>
               {taxaData && (
                 <div style={{ backgroundColor: '#F9FAFB', borderRadius: '0.5rem', padding: '1rem' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', textAlign: 'center' }}>
@@ -385,7 +436,7 @@ export default function PublicDetalheEscola() {
           <h2 style={{ fontSize: '1.375rem', fontWeight: 700, marginBottom: '0.5rem' }}>Interessado nesta instituição?</h2>
           <p style={{ fontSize: '0.9375rem', opacity: 0.85, marginBottom: '1.5rem' }}>Solicite a vaga do seu aluno ou entre em contato para mais informações.</p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <button onClick={() => { if (!isLoggedIn) navigate('/login'); else setShowSolicitacao(true); }} style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', backgroundColor: COLORS.white, color: COLORS.darkBlue, fontSize: '0.9375rem', fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => { if (!isLoggedIn) navigate('/login'); else if (user?.perfil === 'encarregado') navigate(`/app/area-encarregado?escola=${id}`); else setShowSolicitacao(true); }} style={{ padding: '0.75rem 1.5rem', borderRadius: '0.5rem', backgroundColor: COLORS.white, color: COLORS.darkBlue, fontSize: '0.9375rem', fontWeight: 600, border: 'none', cursor: 'pointer' }}>
               Solicitar Vagas
             </button>
             {escola.telefone && (

@@ -35,15 +35,15 @@ function formatarData(dateStr) {
 function NoticiaCard({ noticia }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col">
-      {noticia.imagem && (
+      {noticia.imagem_url || noticia.imagem ? (
         <div className="h-48 overflow-hidden">
           <img
-            src={noticia.imagem}
+            src={noticia.imagem_url || noticia.imagem}
             alt={noticia.titulo}
             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
           />
         </div>
-      )}
+      ) : null}
       <div className="p-5 flex flex-col flex-1">
         <div className="flex items-center gap-3 mb-3">
           <span
@@ -79,16 +79,16 @@ function NoticiaDestaque({ noticia }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
       <div className="grid grid-cols-1 lg:grid-cols-2">
-        {noticia.imagem && (
+        {(noticia.imagem_url || noticia.imagem) ? (
           <div className="h-64 lg:h-auto overflow-hidden">
             <img
-              src={noticia.imagem}
+              src={noticia.imagem_url || noticia.imagem}
               alt={noticia.titulo}
               className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
             />
           </div>
-        )}
-        <div className={`p-8 flex flex-col justify-center ${!noticia.imagem ? 'lg:col-span-2' : ''}`}>
+        ) : null}
+        <div className={`p-8 flex flex-col justify-center ${!(noticia.imagem_url || noticia.imagem) ? 'lg:col-span-2' : ''}`}>
           <div className="flex items-center gap-3 mb-4">
             <span
               className={`px-3 py-1 rounded-full text-xs font-semibold ${

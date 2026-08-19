@@ -180,7 +180,7 @@ const Dashboard = () => {
           </div>
         </div>
         <div style={{ height: '500px' }} className="relative">
-          <MapaAngola escolas={escolas} onSelectEscola={(e) => navigate(`/escolas/${e.id}`)} />
+          <MapaAngola escolas={escolas} onSelectEscola={(e) => navigate(`/escolas/${e._id || e.id}`)} />
         </div>
       </div>
 

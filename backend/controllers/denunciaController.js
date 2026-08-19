@@ -1,5 +1,6 @@
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
+const { matchInstituicaoId } = require('../utils/filters');
 
 const getDenuncias = async (req, res) => {
   try {
@@ -12,7 +13,7 @@ const getDenuncias = async (req, res) => {
     const matchStage = {};
     if (estado) matchStage.estado = estado;
     if (tipo) matchStage.tipo = tipo;
-    if (instituicao_id) matchStage.instituicao_id = instituicao_id;
+    if (instituicao_id) matchStage.instituicao_id = matchInstituicaoId(instituicao_id);
 
     const total = await db.collection('denuncias').countDocuments(matchStage);
 

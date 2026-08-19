@@ -69,6 +69,21 @@ router.put('/users/:id/aprovar', authenticateToken, authorizeRole('admin'), asyn
       { $set: { aprovado: true } }
     );
 
+    if (user.perfil === 'encarregado' && !user.entidade_id) {
+      const encResult = await db.collection('encarregados').insertOne({
+        nome_completo: user.nome || user.username,
+        telefone: user.telefone || null,
+        bi: null,
+        email: user.email || null,
+        endereco: null,
+        created_at: new Date()
+      });
+      await db.collection('usuarios').updateOne(
+        { _id: new ObjectId(req.params.id) },
+        { $set: { entidade_id: encResult.insertedId.toString(), entidade_tipo: 'encarregado' } }
+      );
+    }
+
     if (user.email) {
       const { enviarEmail } = require('../config/email');
       const { templateEmail } = require('../config/emailTemplate');

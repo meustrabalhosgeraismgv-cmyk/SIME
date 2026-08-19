@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { School, Save, MapPin, Upload, Loader2, Plus, Trash2, GraduationCap, BookOpen, Clock, FileText } from 'lucide-react';
-import { cursoService, informacoesService } from '../services/api';
+import { School, Save, MapPin, Upload, Loader2, Plus, Trash2, GraduationCap, BookOpen, Clock, FileText, ImagePlus, Camera } from 'lucide-react';
+import { cursoService, informacoesService, instituicaoService } from '../services/api';
 
 const GerirInstituicao = () => {
   const { user } = useAuth();
@@ -10,6 +10,8 @@ const GerirInstituicao = () => {
   const [instituicao, setInstituicao] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImagem, setUploadingImagem] = useState(false);
+  const [uploadingLogotipo, setUploadingLogotipo] = useState(false);
   const [activeTab, setActiveTab] = useState('dados');
   const [cursos, setCursos] = useState([]);
   const [info, setInfo] = useState(null);
@@ -33,23 +35,24 @@ const GerirInstituicao = () => {
   const fetchAll = async () => {
     try {
       const [instRes, cursosRes, infoRes] = await Promise.all([
-        fetch(`/api/instituicoes/${user?.entidade_id}`).then(r => r.json()),
+        instituicaoService.getById(user?.entidade_id),
         cursoService.getByInstituicao(user?.entidade_id).catch(() => ({ data: { data: [] } })),
         informacoesService.getByInstituicao(user?.entidade_id).catch(() => ({ data: null }))
       ]);
-      setInstituicao(instRes);
+      const inst = instRes.data;
+      setInstituicao(inst);
       setForm({
-        nome: instRes.nome || '', endereco: instRes.endereco || '', telefone: instRes.telefone || '',
-        email: instRes.email || '', responsavel: instRes.responsavel || '',
-        latitude: instRes.latitude || '', longitude: instRes.longitude || '',
-        lema: instRes.lema || '', descricao: instRes.descricao || '',
-        coordenador_pais_nome: instRes.coordenador_pais_nome || '',
-        coordenador_pais_telefone: instRes.coordenador_pais_telefone || '',
-        coordenador_pais_email: instRes.coordenador_pais_email || '',
-        taxa_inscricao: instRes.taxa_inscricao || 0, taxa_matricula: instRes.taxa_matricula || 0,
-        aceita_inscricao_online: instRes.aceita_inscricao_online || 0,
-        aceita_inscricao_presencial: instRes.aceita_inscricao_presencial ?? 1,
-        imagem_url: instRes.imagem_url || '', logotipo_url: instRes.logotipo_url || ''
+        nome: inst.nome || '', endereco: inst.endereco || '', telefone: inst.telefone || '',
+        email: inst.email || '', responsavel: inst.responsavel || '',
+        latitude: inst.latitude || '', longitude: inst.longitude || '',
+        lema: inst.lema || '', descricao: inst.descricao || '',
+        coordenador_pais_nome: inst.coordenador_pais_nome || '',
+        coordenador_pais_telefone: inst.coordenador_pais_telefone || '',
+        coordenador_pais_email: inst.coordenador_pais_email || '',
+        taxa_inscricao: inst.taxa_inscricao || 0, taxa_matricula: inst.taxa_matricula || 0,
+        aceita_inscricao_online: inst.aceita_inscricao_online || 0,
+        aceita_inscricao_presencial: inst.aceita_inscricao_presencial ?? 1,
+        imagem_url: inst.imagem_url || '', logotipo_url: inst.logotipo_url || ''
       });
       setCursos(cursosRes.data.data || []);
       if (infoRes.data) {
@@ -64,12 +67,38 @@ const GerirInstituicao = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      await fetch(`/api/instituicoes/${user?.entidade_id}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form)
-      });
+      await instituicaoService.update(user?.entidade_id, form);
       alert('Dados gerais guardados!');
     } catch (e) { alert('Erro ao guardar'); }
     finally { setSaving(false); }
+  };
+
+  const handleUploadImagem = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingImagem(true);
+    try {
+      const res = await instituicaoService.uploadImagem(user?.entidade_id, file);
+      setForm(f => ({ ...f, imagem_url: res.data.imagem_url }));
+      setInstituicao(i => ({ ...i, imagem_url: res.data.imagem_url }));
+      alert('Imagem de capa atualizada com sucesso!');
+    } catch (err) {
+      alert('Erro ao fazer upload da imagem');
+    } finally { setUploadingImagem(false); }
+  };
+
+  const handleUploadLogotipo = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingLogotipo(true);
+    try {
+      const res = await instituicaoService.uploadLogotipo(user?.entidade_id, file);
+      setForm(f => ({ ...f, logotipo_url: res.data.logotipo_url }));
+      setInstituicao(i => ({ ...i, logotipo_url: res.data.logotipo_url }));
+      alert('Logotipo atualizado com sucesso!');
+    } catch (err) {
+      alert('Erro ao fazer upload do logotipo');
+    } finally { setUploadingLogotipo(false); }
   };
 
   const handleSaveInfo = async () => {
@@ -192,6 +221,54 @@ const GerirInstituicao = () => {
                 <div>
                   <label className={`block text-sm font-medium ${subtext} mb-1`}>Coordenador de Pais (Email)</label>
                   <input type="email" value={form.coordenador_pais_email} onChange={e => setForm({...form, coordenador_pais_email: e.target.value})} className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`} placeholder="Email do coordenador" />
+                </div>
+              </div>
+            </div>
+
+            {/* Imagens da Instituição */}
+            <div className={`${card} border rounded-2xl p-6 mb-6`}>
+              <h2 className={`text-lg font-semibold ${text} mb-4 flex items-center gap-2`}>
+                <ImagePlus className="w-5 h-5 text-primary-500" /> Imagens da Instituição
+              </h2>
+              <p className={`text-sm ${subtext} mb-4`}>
+                Carregue a imagem de capa e o logotipo da instituição. Estas imagens ficam visíveis para todos os utilizadores da plataforma.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={`block text-sm font-medium ${subtext} mb-2`}>Imagem de Capa</label>
+                  <div className={`rounded-xl overflow-hidden border ${input} h-40 flex items-center justify-center bg-gray-100 dark:bg-navy-700 mb-2`}>
+                    {form.imagem_url ? (
+                      <img src={form.imagem_url} alt="Capa" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-center text-gray-400">
+                        <ImagePlus className="w-8 h-8 mx-auto mb-1" />
+                        <span className="text-xs">Sem imagem de capa</span>
+                      </div>
+                    )}
+                  </div>
+                  <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed ${input} ${text} cursor-pointer hover:bg-gray-50 dark:hover:bg-navy-700 transition-colors`}>
+                    {uploadingImagem ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {uploadingImagem ? 'A carregar...' : 'Carregar Capa'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleUploadImagem} />
+                  </label>
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium ${subtext} mb-2`}>Logotipo</label>
+                  <div className={`rounded-xl overflow-hidden border ${input} h-40 flex items-center justify-center bg-gray-100 dark:bg-navy-700 mb-2`}>
+                    {form.logotipo_url ? (
+                      <img src={form.logotipo_url} alt="Logotipo" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="text-center text-gray-400">
+                        <Camera className="w-8 h-8 mx-auto mb-1" />
+                        <span className="text-xs">Sem logotipo</span>
+                      </div>
+                    )}
+                  </div>
+                  <label className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed ${input} ${text} cursor-pointer hover:bg-gray-50 dark:hover:bg-navy-700 transition-colors`}>
+                    {uploadingLogotipo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                    {uploadingLogotipo ? 'A carregar...' : 'Carregar Logotipo'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleUploadLogotipo} />
+                  </label>
                 </div>
               </div>
             </div>

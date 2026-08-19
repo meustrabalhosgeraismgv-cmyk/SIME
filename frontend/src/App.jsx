@@ -8,6 +8,8 @@ import PublicLayout from './components/PublicLayout';
 import PublicEscolas from './pages/public/PublicEscolas';
 import PublicDetalheEscola from './pages/public/PublicDetalheEscola';
 import NoticiasPage from './pages/public/NoticiasPage';
+import NoticiaDetalhe from './pages/public/NoticiaDetalhe';
+import PublicDocumentos from './pages/public/PublicDocumentos';
 import CalendarioPage from './pages/public/CalendarioPage';
 import PublicDashboard from './pages/public/PublicDashboard';
 import TermosDeUso from './pages/public/TermosDeUso';
@@ -35,6 +37,13 @@ import GerirInstituicao from './pages/GerirInstituicao';
 import GerirVagas from './pages/GerirVagas';
 import SolicitacoesGestor from './pages/SolicitacoesGestor';
 import ComunicadosGestor from './pages/ComunicadosGestor';
+import NoticiasInstituicao from './pages/NoticiasInstituicao';
+import AreaEncarregado from './pages/AreaEncarregado';
+import MercadoVagas from './pages/MercadoVagas';
+import ConfiguracoesSistema from './pages/ConfiguracoesSistema';
+import GestaoNoticias from './pages/GestaoNoticias';
+import GerirCalendario from './pages/GerirCalendario';
+import UsSdPanel from './pages/UsSdPanel';
 import GerirPerfil from './pages/GerirPerfil';
 import Aprovacoes from './pages/Aprovacoes';
 import Utilizadores from './pages/Utilizadores';
@@ -71,6 +80,8 @@ const AppRoutes = () => {
         <Route path="escolas" element={<PublicEscolas />} />
         <Route path="escolas/:id" element={<PublicDetalheEscola />} />
         <Route path="noticias" element={<NoticiasPage />} />
+        <Route path="noticias/:id" element={<NoticiaDetalhe />} />
+        <Route path="documentos" element={<PublicDocumentos />} />
         <Route path="calendario" element={<CalendarioPage />} />
         <Route path="termos-de-uso" element={<TermosDeUso />} />
         <Route path="acessibilidade" element={<Acessibilidade />} />
@@ -103,14 +114,19 @@ const AppRoutes = () => {
         <Route path="gerir-vagas" element={<GerirVagas />} />
         <Route path="solicitacoes-gestor" element={<SolicitacoesGestor />} />
         <Route path="comunicados" element={<ComunicadosGestor />} />
-        <Route path="noticias-instituicao" element={<NoticiasPage />} />
-        <Route path="noticias" element={<NoticiasPage />} />
+        <Route path="noticias-instituicao" element={<NoticiasInstituicao />} />
+        <Route path="noticias" element={<GestaoNoticias />} />
         <Route path="aprovacoes" element={<Aprovacoes />} />
         <Route path="utilizadores" element={<Utilizadores />} />
         <Route path="solicitacoes" element={<Solicitacoes />} />
         <Route path="chat" element={<Chat />} />
         <Route path="chat/:conversaId" element={<Chat />} />
         <Route path="gerir-perfil" element={<GerirPerfil />} />
+        <Route path="area-encarregado" element={<AreaEncarregado />} />
+        <Route path="mercado-vagas" element={<MercadoVagas />} />
+        <Route path="configuracoes-sistema" element={<ConfiguracoesSistema />} />
+        <Route path="gerir-calendario" element={<GerirCalendario />} />
+        <Route path="ussd" element={<UsSdPanel />} />
         <Route path="ficheiros-escolares" element={<FicheirosEscolares />} />
         <Route path="sms" element={<Sms />} />
         <Route path="recursos-humanos" element={<RecursosHumanos />} />

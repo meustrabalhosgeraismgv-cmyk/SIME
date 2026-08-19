@@ -44,6 +44,10 @@ export function getSocket() {
   return socket;
 }
 
+export function isSocketConnected() {
+  return !!socket?.connected;
+}
+
 export function joinConversa(conversaId) {
   socket?.emit('join-conversa', conversaId);
 }

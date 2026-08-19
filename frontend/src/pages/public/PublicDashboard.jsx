@@ -5,7 +5,7 @@ import {
   ArrowRight, Calendar, Megaphone, Star, AlertTriangle,
   Info, Settings, Building2, ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { instituicaoService } from '../../services/api';
+import { instituicaoService, configService } from '../../services/api';
 import MapaAngola from '../../components/MapaAngola';
 
 export default function PublicDashboard() {
@@ -13,6 +13,7 @@ export default function PublicDashboard() {
   const [noticias, setNoticias] = useState([]);
   const [stats, setStats] = useState({ escolas: 0, alunos: 0, professores: 0, vagas: 0 });
   const [searchQuery, setSearchQuery] = useState('');
+  const [heroConfig, setHeroConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const carouselRef = useRef(null);
@@ -45,6 +46,8 @@ export default function PublicDashboard() {
 
         const noticiasRes = await import('../../services/api').then(m => m.default.get('/noticias?limit=3'));
         setNoticias(noticiasRes.data.data || []);
+
+        configService.getAll().then(r => setHeroConfig(r.data.data?.hero || null)).catch(() => {});
       } catch (err) {
         console.error('Erro ao carregar dados:', err);
       } finally {
@@ -75,14 +78,20 @@ export default function PublicDashboard() {
       <section className="relative overflow-hidden rounded-b-xl px-4 sm:px-8 py-20 flex flex-col items-center justify-center text-center min-h-[420px]">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0061a4] via-[#0061a4] to-[#00497d]" />
+        {heroConfig?.imagem && (
+          <div className="absolute inset-0">
+            <img src={heroConfig.imagem} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-[#0061a4]/70 to-[#00497d]/90"></div>
+          </div>
+        )}
 
         <div className="relative z-10 max-w-3xl w-full space-y-4">
           <span className="text-sm font-semibold text-[#d1e4ff] uppercase tracking-widest">República de Angola</span>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">
-            Bem-vindo ao Educa Mais+ Angola
+            {heroConfig?.titulo || 'Bem-vindo ao Educa Mais+ Angola'}
           </h1>
           <p className="text-lg text-white/90 max-w-2xl mx-auto leading-relaxed">
-            O <strong>Sistema Integrado de Monitorização Escolar</strong> é a plataforma oficial de Angola para consulta de instituições de ensino, vagas disponíveis, calendário lectivo e processo de inscrição online.
+            {heroConfig?.subtitulo || <>O <strong>Sistema Integrado de Monitorização Escolar</strong> é a plataforma oficial de Angola para consulta de instituições de ensino, vagas disponíveis, calendário lectivo e processo de inscrição online.</>}
           </p>
           
           {/* Search Bar */}
@@ -131,7 +140,7 @@ export default function PublicDashboard() {
                 </div>
               </div>
               <div className="flex-1 relative">
-                <MapaAngola escolas={escolas} onSelectEscola={(e) => navigate(`/escolas/${e.id}`)} />
+                <MapaAngola escolas={escolas} onSelectEscola={(e) => navigate(`/escolas/${e._id || e.id}`)} />
               </div>
             </div>
           </div>
@@ -171,7 +180,7 @@ export default function PublicDashboard() {
                   {escolas.slice(0, 4).map((escola) => {
                     const pct = getOcupacao(escola.vagas_totais, escola.vagas_disponiveis);
                     return (
-                      <Link key={escola.id} to={`/escolas/${escola.id}`}
+<Link key={escola._id || escola.id} to={`/escolas/${escola._id || escola.id}`}
                         className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center"
                              style={{ backgroundColor: getVagasColor(pct) + '15' }}>
@@ -278,7 +287,7 @@ export default function PublicDashboard() {
           {noticias.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {noticias.map((noticia) => (
-                <Link key={noticia.id} to="/noticias"
+                <Link key={noticia._id || noticia.id} to="/noticias"
                   className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden border border-gray-200 group">
                   <div className="p-5">
                     <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full mb-3 ${

@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   ClipboardList, Search, Clock, CheckCircle, XCircle, 
-  AlertTriangle, School, Calendar, RefreshCw, FileText
+  AlertTriangle, School, Calendar, RefreshCw, FileText,
+  HeartHandshake, BookOpen, Loader2
 } from 'lucide-react';
 import Loading from '../components/Loading';
-import { solicitacaoService } from '../services/api';
+import { solicitacaoService, matriculaService } from '../services/api';
 import { useNotifications } from '../contexts/NotificationContext';
 
 const Solicitacoes = () => {
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [filtro, setFiltro] = useState('todas');
   const { showToast } = useNotifications();
 
@@ -25,6 +28,20 @@ const Solicitacoes = () => {
       showToast({ message: 'Erro ao carregar solicitações', type: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fazerMatricula = async (sol) => {
+    if (!confirm(`Confirmar a matrícula online de "${sol.aluno_nome}" na ${sol.instituicao_nome}?`)) return;
+    setSending(true);
+    try {
+      const res = await matriculaService.createEncarregado({ solicitacao_id: sol.id });
+      showToast({ message: `Matrícula realizada! Nº de estudante: ${res.data.numero_estudante}`, type: 'success' });
+      loadSolicitacoes();
+    } catch (error) {
+      showToast({ message: error.response?.data?.error || 'Erro ao fazer a matrícula', type: 'error' });
+    } finally {
+      setSending(false);
     }
   };
 
@@ -71,6 +88,10 @@ const Solicitacoes = () => {
           <RefreshCw className="w-4 h-4" />
           Atualizar
         </button>
+        <Link to="/app/area-encarregado" className="btn-primary flex items-center gap-2">
+          <ClipboardList className="w-4 h-4" />
+          Nova Solicitação
+        </Link>
       </div>
 
       {/* Stats Tabs */}
@@ -143,10 +164,39 @@ const Solicitacoes = () => {
                         <FileText className="w-3 h-3" /> {sol.comunicado_titulo}
                       </p>
                     )}
+                    {sol.necessidades_especiais && (
+                      <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                        <HeartHandshake className="w-3 h-3" /> {sol.necessidades_especiais}
+                      </span>
+                    )}
+                    {(sol.historico || []).length > 0 && (
+                      <div className="mt-2 flex items-center gap-1 flex-wrap">
+                        {sol.historico.map((h, i) => {
+                          const hc = getEstadoConfig(h.estado);
+                          const HIcon = hc.icon;
+                          const isLast = i === sol.historico.length - 1;
+                          return (
+                            <div key={i} className="flex items-center gap-1">
+                              <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium ${hc.bg} ${hc.color} ${isLast ? 'ring-1 ring-primary-300 dark:ring-primary-700' : 'opacity-60'}`}>
+                                <HIcon className="w-3 h-3" /> {hc.label}
+                              </div>
+                              {!isLast && <span className="text-gray-400 text-xs">→</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     {sol.observacoes && (
                       <p className="mt-2 text-xs text-gray-500 bg-gray-50 dark:bg-navy-800 px-3 py-2 rounded-lg">
                         <span className="font-medium">Observação:</span> {sol.observacoes}
                       </p>
+                    )}
+                    {(sol.estado === 'aceite' || sol.estado === 'agendado') && (
+                      <button onClick={() => fazerMatricula(sol)} disabled={sending}
+                        className="mt-3 flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-medium disabled:opacity-50">
+                        {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookOpen className="w-4 h-4" />}
+                        Fazer Matrícula Online
+                      </button>
                     )}
                   </div>
                   {sol.data_resposta && (

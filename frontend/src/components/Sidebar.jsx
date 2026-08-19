@@ -25,6 +25,10 @@ import {
   ShieldAlert,
   UserCog,
   Award,
+  TrendingUp,
+  Image,
+  Calendar,
+  Smartphone,
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -37,8 +41,11 @@ const Sidebar = () => {
       title: 'Gestão do Sistema',
       items: [
         { icon: LayoutDashboard, label: 'Página Inicial', path: '/app/dashboard' },
+        { icon: TrendingUp, label: 'Mercado de Vagas', path: '/app/mercado-vagas' },
         { icon: School, label: 'Instituições', path: '/app/instituicoes' },
         { icon: Newspaper, label: 'Notícias Gerais', path: '/app/noticias' },
+        { icon: Image, label: 'Imagens do Sistema', path: '/app/configuracoes-sistema' },
+        { icon: Calendar, label: 'Calendário Escolar', path: '/app/gerir-calendario' },
         { icon: CheckCircle, label: 'Aprovar Instituições', path: '/app/aprovacoes' },
         { icon: Users, label: 'Utilizadores', path: '/app/utilizadores' },
       ]
@@ -60,6 +67,7 @@ const Sidebar = () => {
     {
       title: 'Comunicação',
       items: [
+        { icon: Smartphone, label: 'USSD / Códigos Rápidos', path: '/app/ussd' },
         { icon: MessageSquareText, label: 'SMS', path: '/app/sms' },
         { icon: MessageCircle, label: 'Mensagens', path: '/app/chat' },
       ]
@@ -120,7 +128,7 @@ const Sidebar = () => {
     {
       title: 'Minha Conta',
       items: [
-        { icon: LayoutDashboard, label: 'Página Inicial', path: '/app/dashboard' },
+        { icon: LayoutDashboard, label: 'Área do Encarregado', path: '/app/area-encarregado' },
         { icon: Search, label: 'Pesquisar Escolas', path: '/app/pesquisar-escolas' },
         { icon: ClipboardList, label: 'As Minhas Solicitações', path: '/app/solicitacoes' },
       ]

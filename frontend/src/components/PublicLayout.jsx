@@ -7,6 +7,7 @@ const navLinks = [
   { to: '/', label: 'Página Inicial' },
   { to: '/escolas', label: 'Escolas' },
   { to: '/noticias', label: 'Notícias' },
+  { to: '/documentos', label: 'Documentos' },
   { to: '/calendario', label: 'Calendário' },
   { to: '/sos', label: 'SOS' },
 ];

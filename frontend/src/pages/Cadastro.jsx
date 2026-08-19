@@ -19,6 +19,8 @@ const Cadastro = () => {
     username: '',
     password: '',
     confirmPassword: '',
+    telefone: '',
+    bi: '',
     instituicao_nome: '',
     instituicao_municipio: '',
     instituicao_tipo: 'ensino_primario',
@@ -134,6 +136,11 @@ const Cadastro = () => {
         payload.instituicao_nome = formData.instituicao_nome;
         payload.instituicao_municipio = formData.instituicao_municipio;
         payload.instituicao_tipo = formData.instituicao_tipo;
+      }
+
+      if (perfil === 'encarregado') {
+        payload.telefone = formData.telefone;
+        payload.bi = formData.bi;
       }
 
       await api.post('/auth/register', payload);
@@ -479,6 +486,33 @@ const Cadastro = () => {
                   </div>
                 )}
               </div>
+
+              {perfil === 'encarregado' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Telefone do Encarregado</label>
+                    <input
+                      type="tel"
+                      name="telefone"
+                      value={formData.telefone}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0061a4]/20 focus:border-[#0061a4] transition-all"
+                      placeholder="Ex: 923 456 789"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Número do BI do Encarregado</label>
+                    <input
+                      type="text"
+                      name="bi"
+                      value={formData.bi}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0061a4]/20 focus:border-[#0061a4] transition-all"
+                      placeholder="Ex: 003456789LA042"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Nome de utilizador *</label>

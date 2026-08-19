@@ -1,5 +1,6 @@
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
+const { lookupInstituicao } = require('../utils/filters');
 
 const getDashboardStats = async (req, res) => {
   try {
@@ -55,14 +56,7 @@ const getDashboardStats = async (req, res) => {
         }
       },
       { $unwind: { path: '$turma', preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: 'instituicoes',
-          localField: 'turma.instituicao_id',
-          foreignField: '_id',
-          as: 'instituicao'
-        }
-      },
+      lookupInstituicao('turma.instituicao_id', 'instituicao'),
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       {
         $project: {

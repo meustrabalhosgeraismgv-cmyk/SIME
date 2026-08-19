@@ -1,5 +1,6 @@
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
+const { matchInstituicaoId, lookupInstituicao } = require('../utils/filters');
 
 const getTurmas = async (req, res) => {
   try {
@@ -11,7 +12,7 @@ const getTurmas = async (req, res) => {
 
     const matchStage = {};
     if (instituicao_id) {
-      matchStage.instituicao_id = new ObjectId(instituicao_id);
+      matchStage.instituicao_id = matchInstituicaoId(instituicao_id);
     }
     if (ano_letivo) {
       matchStage.ano_letivo = ano_letivo;
@@ -27,14 +28,7 @@ const getTurmas = async (req, res) => {
       { $sort: { ano_letivo: -1, nome: 1 } },
       { $skip: skip },
       { $limit: limitNum },
-      {
-        $lookup: {
-          from: 'instituicoes',
-          localField: 'instituicao_id',
-          foreignField: '_id',
-          as: 'instituicao'
-        }
-      },
+      lookupInstituicao('instituicao_id', 'instituicao'),
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
@@ -86,14 +80,7 @@ const getTurmaById = async (req, res) => {
 
     const pipeline = [
       { $match: { _id: new ObjectId(id) } },
-      {
-        $lookup: {
-          from: 'instituicoes',
-          localField: 'instituicao_id',
-          foreignField: '_id',
-          as: 'instituicao'
-        }
-      },
+      lookupInstituicao('instituicao_id', 'instituicao'),
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {

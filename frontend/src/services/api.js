@@ -107,6 +107,8 @@ export const turmaService = {
 
 export const matriculaService = {
   getAll: (params) => api.get('/matriculas', { params }),
+  getEncarregado: () => api.get('/matriculas/encarregado'),
+  createEncarregado: (data) => api.post('/matriculas/encarregado', data),
   create: (data) => api.post('/matriculas', data),
   cancel: (id) => api.put(`/matriculas/${id}/cancelar`)
 };
@@ -123,9 +125,29 @@ export const noticiaService = {
   getAll: (params) => api.get('/noticias', { params }),
   getDestaque: () => api.get('/noticias/destaque'),
   getById: (id) => api.get(`/noticias/${id}`),
+  getGestor: () => api.get('/noticias/gestor'),
   create: (data) => api.post('/noticias', data),
   update: (id, data) => api.put(`/noticias/${id}`, data),
   delete: (id) => api.delete(`/noticias/${id}`),
+  uploadImagem: (id, file) => {
+    const formData = new FormData();
+    formData.append('imagem', file);
+    return api.post(`/noticias/${id}/imagem`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  uploadVideo: (id, file, titulo) => {
+    const formData = new FormData();
+    formData.append('video', file);
+    if (titulo) formData.append('titulo', titulo);
+    return api.post(`/noticias/${id}/video`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  getAdminPendentes: () => api.get('/noticias/admin/pendentes'),
+  getAdminTodas: () => api.get('/noticias/admin/todas'),
+  aprovar: (id) => api.put(`/noticias/${id}/aprovar`),
+  rejeitar: (id, motivo) => api.put(`/noticias/${id}/rejeitar`, { motivo }),
 };
 
 export const comunicadoService = {
@@ -139,6 +161,7 @@ export const comunicadoService = {
 export const solicitacaoService = {
   getGestor: () => api.get('/solicitacoes/gestor'),
   getEncarregado: () => api.get('/solicitacoes/encarregado'),
+  getAdmin: (params) => api.get('/solicitacoes/admin', { params }),
   create: (data) => api.post('/solicitacoes', data),
   aceitar: (id) => api.put(`/solicitacoes/${id}/aceitar`),
   rejeitar: (id, data) => api.put(`/solicitacoes/${id}/rejeitar`, data),
@@ -234,6 +257,20 @@ export const denunciaService = {
   create: (data) => api.post('/denuncias', data),
   update: (id, data) => api.put(`/denuncias/${id}`, data),
   delete: (id) => api.delete(`/denuncias/${id}`),
+};
+
+export const configService = {
+  getAll: () => api.get('/configs'),
+  updateChave: (chave, formData) => api.put(`/configs/${chave}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+};
+
+export const ussdService = {
+  getCodigos: () => api.get('/ussd/codigos'),
+  entrada: (data) => api.post('/ussd/entrada', data),
+  getRegistos: () => api.get('/ussd/registos'),
+  registarEncarregado: (data) => api.post('/ussd/registar-encarregado', data),
 };
 
 export default api;

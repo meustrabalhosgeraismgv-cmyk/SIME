@@ -8,9 +8,9 @@ const {
   updateDocumento,
   deleteDocumento
 } = require('../controllers/documentoController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, authenticateOptional } = require('../middleware/auth');
 
-router.get('/', getDocumentos);
+router.get('/', authenticateOptional, getDocumentos);
 router.get('/categorias', getCategorias);
 router.get('/:id', getDocumentoById);
 router.post('/', authenticateToken, createDocumento);

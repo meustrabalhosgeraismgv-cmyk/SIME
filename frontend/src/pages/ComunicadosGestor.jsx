@@ -20,7 +20,7 @@ const ComunicadosGestor = () => {
   const fetchComunicados = async () => {
     try {
       const res = await fetch('/api/comunicados/gestor', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('sime_token')}` }
       });
       const data = await res.json();
       setComunicados(data.data || []);
@@ -36,13 +36,13 @@ const ComunicadosGestor = () => {
       if (editing) {
         await fetch(`/api/comunicados/${editing.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('sime_token')}` },
           body: JSON.stringify(payload)
         });
       } else {
         await fetch('/api/comunicados', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('sime_token')}` },
           body: JSON.stringify(payload)
         });
       }
@@ -60,7 +60,7 @@ const ComunicadosGestor = () => {
     try {
       await fetch(`/api/comunicados/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('sime_token')}` }
       });
       fetchComunicados();
     } catch (error) {

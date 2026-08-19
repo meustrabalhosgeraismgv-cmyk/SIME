@@ -10,9 +10,23 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('sime_token');
     const userData = localStorage.getItem('sime_user');
-    
+
     if (token && userData) {
-      setUser(JSON.parse(userData));
+      const parsed = JSON.parse(userData);
+      setUser(parsed);
+      authService.getPerfil()
+        .then(res => {
+          const pd = res.data || {};
+          const merged = {
+            ...parsed,
+            foto: pd.foto || parsed.foto || null,
+            entidade_id: pd.entidade_id || parsed.entidade_id || null,
+            entidade_tipo: pd.entidade_tipo || parsed.entidade_tipo || null,
+          };
+          localStorage.setItem('sime_user', JSON.stringify(merged));
+          setUser(merged);
+        })
+        .catch(() => {});
     }
     setLoading(false);
   }, []);
@@ -29,6 +43,8 @@ export const AuthProvider = ({ children }) => {
         const perfilResponse = await authService.getPerfil();
         const perfilData = perfilResponse.data;
         userData.foto = perfilData.foto || null;
+        userData.entidade_id = perfilData.entidade_id || null;
+        userData.entidade_tipo = perfilData.entidade_tipo || null;
         localStorage.setItem('sime_user', JSON.stringify(userData));
       } catch (e) {}
       

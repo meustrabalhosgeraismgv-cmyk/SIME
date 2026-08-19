@@ -18,11 +18,7 @@ const getInstituicoes = async (req, res) => {
       {
         $addFields: {
           municipio_id_obj: {
-            $cond: [
-              { $regexMatch: { input: { $ifNull: ['$municipio_id', ''] }, regex: '^[a-f0-9]{24}$', options: 'i' } },
-              { $toObjectId: '$municipio_id' },
-              null
-            ]
+            $convert: { input: '$municipio_id', to: 'objectId', onError: null, onNull: null }
           },
           latitude: { $ifNull: ['$latitude', '$lat'] },
           longitude: { $ifNull: ['$longitude', '$lng'] },
@@ -52,6 +48,7 @@ const getInstituicoes = async (req, res) => {
       { $unwind: { path: '$provincia', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
+          id: { $toString: '$_id' },
           municipio_nome: { $ifNull: ['$municipio.nome', '$mun'] },
           provincia_nome: '$provincia.nome'
         }
@@ -99,11 +96,7 @@ const getInstituicaoById = async (req, res) => {
       {
         $addFields: {
           municipio_id_obj: {
-            $cond: [
-              { $regexMatch: { input: { $ifNull: ['$municipio_id', ''] }, regex: '^[a-f0-9]{24}$', options: 'i' } },
-              { $toObjectId: '$municipio_id' },
-              null
-            ]
+            $convert: { input: '$municipio_id', to: 'objectId', onError: null, onNull: null }
           },
           latitude: { $ifNull: ['$latitude', '$lat'] },
           longitude: { $ifNull: ['$longitude', '$lng'] },
@@ -133,6 +126,7 @@ const getInstituicaoById = async (req, res) => {
       { $unwind: { path: '$provincia', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
+          id: { $toString: '$_id' },
           municipio_nome: { $ifNull: ['$municipio.nome', '$mun'] },
           provincia_nome: '$provincia.nome'
         }

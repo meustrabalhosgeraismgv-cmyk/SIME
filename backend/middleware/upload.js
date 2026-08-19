@@ -24,6 +24,13 @@ function criarUpload(pasta, opcoes = {}) {
   const fileFilter = (req, file, cb) => {
     if (opcoes.todosTipos) {
       cb(null, true);
+    } else if (opcoes.videos) {
+      const videoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo'];
+      if (videoTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Apenas ficheiros de vídeo (MP4, WebM, OGG, MOV, AVI) são aceites'), false);
+      }
     } else {
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
       if (allowedTypes.includes(file.mimetype)) {
@@ -38,13 +45,15 @@ function criarUpload(pasta, opcoes = {}) {
     storage,
     fileFilter,
     limits: {
-      fileSize: opcoes.maxSize || 5 * 1024 * 1024
+      fileSize: opcoes.maxSize || (opcoes.videos ? 200 * 1024 * 1024 : 5 * 1024 * 1024)
     }
   });
 }
 
 const upload = criarUpload('fotos');
 upload.uploadInstituicoes = criarUpload('instituicoes');
+upload.uploadNoticias = criarUpload('noticias');
+upload.uploadVideos = criarUpload('videos', { videos: true, maxSize: 200 * 1024 * 1024 });
 upload.chat = criarUpload('chat', { todosTipos: true, maxSize: 25 * 1024 * 1024 });
 
 module.exports = upload;

@@ -1,5 +1,6 @@
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
+const { matchInstituicaoId } = require('../utils/filters');
 
 const CATEGORIAS = {
   noticia: 'Notícias',
@@ -13,20 +14,21 @@ const CATEGORIAS = {
 const getDocumentos = async (req, res) => {
   try {
     const db = getDB();
-    const { categoria = '', instituicao_id = '', page = 1, limit = 20, search = '' } = req.query;
+    const { categoria = '', instituicao_id = '', page = 1, limit = 20, search = '', incluir_pendentes = '' } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
 
     const matchStage = {};
     if (categoria) matchStage.categoria = categoria;
-    if (instituicao_id) matchStage.instituicao_id = instituicao_id;
+    if (instituicao_id) matchStage.instituicao_id = matchInstituicaoId(instituicao_id);
     if (search) {
       matchStage.$or = [
         { titulo: { $regex: search, $options: 'i' } },
         { descricao: { $regex: search, $options: 'i' } }
       ];
     }
+    if (incluir_pendentes !== '1' || !req.user) matchStage.publicado = 1;
 
     const total = await db.collection('documentos').countDocuments(matchStage);
 
@@ -57,9 +59,10 @@ const getDocumentos = async (req, res) => {
           imagem_url: 1,
           instituicao_id: 1,
           autor: 1,
+          publicado: 1,
           data_documento: 1,
           created_at: 1,
-          instituicao_nome: '$instituicao.nome'
+          instituicao_nome: { $ifNull: ['$instituicao.nome', null] }
         }
       }
     ];
@@ -116,7 +119,8 @@ const createDocumento = async (req, res) => {
       numero: numero || '',
       ficheiro_url: ficheiro_url || null,
       imagem_url: imagem_url || null,
-      instituicao_id: instituicao_id ? new ObjectId(instituicao_id) : null,
+      instituicao_id: instituicao_id ? (ObjectId.isValid(instituicao_id) ? new ObjectId(instituicao_id) : instituicao_id) : (req.user.entidade_id && ObjectId.isValid(req.user.entidade_id) ? new ObjectId(req.user.entidade_id) : null),
+      publicado: req.user.perfil === 'admin' ? 1 : 0,
       autor: req.user.username,
       data_documento: data_documento || null,
       created_at: new Date(),
@@ -133,7 +137,16 @@ const createDocumento = async (req, res) => {
 const updateDocumento = async (req, res) => {
   try {
     const db = getDB();
-    const { titulo, descricao, categoria, referencia, numero, ficheiro_url, imagem_url, instituicao_id, data_documento } = req.body;
+    const doc = await db.collection('documentos').findOne({ _id: new ObjectId(req.params.id) });
+    if (!doc) return res.status(404).json({ error: 'Documento não encontrado' });
+
+    const isAdmin = req.user.perfil === 'admin';
+    if (!isAdmin) {
+      const owner = doc.instituicao_id && req.user.entidade_id && String(doc.instituicao_id) === String(req.user.entidade_id);
+      if (!owner) return res.status(403).json({ error: 'Sem permissão para editar este documento' });
+    }
+
+    const { titulo, descricao, categoria, referencia, numero, ficheiro_url, imagem_url, instituicao_id, data_documento, publicado } = req.body;
 
     const updateData = {};
     if (titulo !== undefined) updateData.titulo = titulo;
@@ -146,8 +159,9 @@ const updateDocumento = async (req, res) => {
     if (numero !== undefined) updateData.numero = numero;
     if (ficheiro_url !== undefined) updateData.ficheiro_url = ficheiro_url;
     if (imagem_url !== undefined) updateData.imagem_url = imagem_url;
-    if (instituicao_id !== undefined) updateData.instituicao_id = instituicao_id ? new ObjectId(instituicao_id) : null;
+    if (instituicao_id !== undefined) updateData.instituicao_id = instituicao_id ? (ObjectId.isValid(instituicao_id) ? new ObjectId(instituicao_id) : instituicao_id) : null;
     if (data_documento !== undefined) updateData.data_documento = data_documento;
+    if (publicado !== undefined && isAdmin) updateData.publicado = (publicado === 1 || publicado === '1') ? 1 : 0;
     updateData.updated_at = new Date();
 
     await db.collection('documentos').updateOne(
@@ -157,6 +171,7 @@ const updateDocumento = async (req, res) => {
 
     res.json({ message: 'Documento atualizado' });
   } catch (error) {
+    console.error('Erro ao atualizar documento:', error);
     res.status(500).json({ error: 'Erro ao atualizar documento' });
   }
 };
@@ -164,9 +179,19 @@ const updateDocumento = async (req, res) => {
 const deleteDocumento = async (req, res) => {
   try {
     const db = getDB();
+    const doc = await db.collection('documentos').findOne({ _id: new ObjectId(req.params.id) });
+    if (!doc) return res.status(404).json({ error: 'Documento não encontrado' });
+
+    const isAdmin = req.user.perfil === 'admin';
+    if (!isAdmin) {
+      const owner = doc.instituicao_id && req.user.entidade_id && String(doc.instituicao_id) === String(req.user.entidade_id);
+      if (!owner) return res.status(403).json({ error: 'Sem permissão para eliminar este documento' });
+    }
+
     await db.collection('documentos').deleteOne({ _id: new ObjectId(req.params.id) });
     res.json({ message: 'Documento removido' });
   } catch (error) {
+    console.error('Erro ao remover documento:', error);
     res.status(500).json({ error: 'Erro ao remover documento' });
   }
 };

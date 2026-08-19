@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, FileText, FolderOpen, Upload, Link2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, FileText, FolderOpen, Upload, Link2, CheckCircle2 } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import StatusChip from '../components/StatusChip';
@@ -18,7 +18,7 @@ const CATEGORIAS_DEFAULT = [
 ];
 
 const FicheirosEscolares = () => {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const [documentos, setDocumentos] = useState([]);
   const [categorias, setCategorias] = useState(CATEGORIAS_DEFAULT);
   const [loading, setLoading] = useState(true);
@@ -42,6 +42,7 @@ const FicheirosEscolares = () => {
   });
 
   const canEdit = hasRole('admin', 'instituicao', 'diretor');
+  const isAdmin = hasRole('admin');
 
   useEffect(() => {
     documentoService.getCategorias()
@@ -62,7 +63,9 @@ const FicheirosEscolares = () => {
         page: pagination.page,
         limit: 10,
         search,
-        categoria: categoriaAtiva
+        categoria: categoriaAtiva,
+        incluir_pendentes: 1,
+        ...(!isAdmin && user?.entidade_id ? { instituicao_id: user.entidade_id } : {})
       });
       setDocumentos(response.data.data);
       setPagination(response.data.pagination);
@@ -86,8 +89,8 @@ const FicheirosEscolares = () => {
         await documentoService.update(editingId, formData);
         setAlert({ type: 'success', message: 'Documento atualizado com sucesso!' });
       } else {
-        await documentoService.create(formData);
-        setAlert({ type: 'success', message: 'Documento registado com sucesso!' });
+        await documentoService.create({ ...formData, instituicao_id: formData.instituicao_id || user?.entidade_id || '' });
+        setAlert({ type: 'success', message: isAdmin ? 'Documento registado com sucesso!' : 'Documento registado! Aguarda aprovação do administrador para ser público.' });
       }
       setShowModal(false);
       resetForm();
@@ -125,6 +128,17 @@ const FicheirosEscolares = () => {
     }
   };
 
+  const handleAprovar = async (id) => {
+    if (!window.confirm('Aprovar este documento? Ficará visível no site público.')) return;
+    try {
+      await documentoService.update(id, { publicado: 1 });
+      setAlert({ type: 'success', message: 'Documento aprovado e publicado!' });
+      loadDocumentos();
+    } catch (error) {
+      setAlert({ type: 'error', message: error.response?.data?.error || 'Erro ao aprovar documento' });
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       titulo: '',
@@ -134,7 +148,7 @@ const FicheirosEscolares = () => {
       numero: '',
       ficheiro_url: '',
       imagem_url: '',
-      instituicao_id: '',
+      instituicao_id: isAdmin ? '' : (user?.entidade_id || ''),
       data_documento: ''
     });
     setEditingId(null);
@@ -152,6 +166,11 @@ const FicheirosEscolares = () => {
     { header: 'Referência', accessor: 'referencia' },
     { header: 'Nº', accessor: 'numero' },
     { header: 'Instituição', accessor: 'instituicao_nome' },
+    { header: 'Estado', accessor: 'publicado', render: (row) => (
+      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${row.publicado === 1 ? 'bg-success/10 text-success dark:text-success-light' : 'bg-warning/10 text-warning dark:text-warning-light'}`}>
+        {row.publicado === 1 ? 'Publicado' : 'Pendente'}
+      </span>
+    )},
     { header: 'Data', accessor: 'data_documento', render: (row) => (
       <span>{row.data_documento ? new Date(row.data_documento).toLocaleDateString('pt-PT') : '—'}</span>
     )},
@@ -164,6 +183,15 @@ const FicheirosEscolares = () => {
         >
           <Eye className="w-4 h-4" />
         </button>
+        {isAdmin && row.publicado !== 1 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handleAprovar(row.id); }}
+            className="p-2 hover:bg-success/10 rounded-lg text-success dark:text-success-light dark:hover:bg-success/20"
+            title="Aprovar (tornar público)"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+          </button>
+        )}
         {canEdit && (
           <>
             <button
@@ -331,6 +359,12 @@ const FicheirosEscolares = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">Categoria</p>
                 <span className="px-3 py-1 inline-block mt-1 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-400">
                   {selectedDoc.categoria_label || selectedDoc.categoria}
+                </span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Estado</p>
+                <span className={`px-3 py-1 inline-block mt-1 rounded-full text-xs font-semibold ${selectedDoc.publicado === 1 ? 'bg-success/10 text-success dark:text-success-light' : 'bg-warning/10 text-warning dark:text-warning-light'}`}>
+                  {selectedDoc.publicado === 1 ? 'Publicado' : 'Pendente (aguarda aprovação)'}
                 </span>
               </div>
               <div>

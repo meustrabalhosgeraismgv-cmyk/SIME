@@ -26,4 +26,19 @@ const authorizeRole = (...roles) => {
   };
 };
 
-module.exports = { authenticateToken, authorizeRole };
+const authenticateOptional = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return next();
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+  } catch (error) {
+    // token inválido/expirado: segue como anónimo
+  }
+  next();
+};
+
+module.exports = { authenticateToken, authorizeRole, authenticateOptional };

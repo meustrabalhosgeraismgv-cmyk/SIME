@@ -5,7 +5,7 @@ import {
   Newspaper, ArrowRight, Phone, Mail, School, Users,
   GraduationCap, BookOpen, Building2
 } from 'lucide-react';
-import { instituicaoService } from '../../services/api';
+import { instituicaoService, configService } from '../../services/api';
 import Logo from '../../components/Logo';
 
 const FEATURES = [
@@ -21,6 +21,7 @@ export default function LandingPage() {
   const [escolas, setEscolas] = useState([]);
   const [noticias, setNoticias] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [heroConfig, setHeroConfig] = useState(null);
   const navigate = useNavigate();
   const statsRef = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -30,6 +31,7 @@ export default function LandingPage() {
     import('../../services/api').then(({ default: api }) => {
       api.get('/noticias?limit=3').then(r => setNoticias(r.data.data || [])).catch(() => {});
     });
+    configService.getAll().then(r => setHeroConfig(r.data.data?.hero || null)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -67,7 +69,13 @@ export default function LandingPage() {
     <div className="min-h-screen">
       {/* Hero */}
       <section className="relative overflow-hidden bg-[#0061a4]">
-        <div className="absolute inset-0 opacity-10">
+        {heroConfig?.imagem && (
+          <div className="absolute inset-0">
+            <img src={heroConfig.imagem} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-[#0061a4]/70 to-[#00497d]/90"></div>
+          </div>
+        )}
+        {!heroConfig?.imagem && <div className="absolute inset-0 opacity-10">
           <svg className="w-full h-full" viewBox="0 0 1440 600" fill="none">
             <circle cx="200" cy="300" r="300" stroke="white" strokeWidth="0.5"/>
             <circle cx="1200" cy="200" r="250" stroke="white" strokeWidth="0.5"/>
@@ -84,12 +92,13 @@ export default function LandingPage() {
             <span className="text-sm text-white/90 font-medium">República de Angola</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-6">
-            Toda a informação escolar<br />
-            <span className="text-white/90">num só lugar</span>
+            {heroConfig?.titulo ? heroConfig.titulo.split('\n').map((t, i) => <span key={i}>{t}{i > 0 && <br />}</span>) : (
+              <>Toda a informação escolar<br />
+              <span className="text-white/90">num só lugar</span></>
+            )}
           </h1>
           <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-10">
-            Encontre escolas, consulte vagas, acompanhe notícias e inicie matrículas 
-            de forma simples e gratuita.
+            {heroConfig?.subtitulo || 'Encontre escolas, consulte vagas, acompanhe notícias e inicie matrículas de forma simples e gratuita.'}
           </p>
           <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
             <div className="flex bg-white rounded-full shadow-xl overflow-hidden">
@@ -171,7 +180,7 @@ export default function LandingPage() {
               {escolas.slice(0, 3).map((escola) => {
                 const pct = getOcupacao(escola.vagas_totais, escola.vagas_disponiveis);
                 return (
-                  <Link key={escola.id} to={`/escolas/${escola.id}`}
+                  <Link key={escola._id || escola.id} to={`/escolas/${escola._id || escola.id}`}
                     className="group bg-white rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-lg overflow-hidden transition-all duration-300">
                     <div className="h-2" style={{ backgroundColor: getVagasColor(pct) }}></div>
                     <div className="p-6">
@@ -231,7 +240,7 @@ export default function LandingPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {noticias.map((n) => (
-                <Link key={n.id} to="/noticias"
+                <Link key={n._id || n.id} to="/noticias"
                   className="group bg-white rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-lg p-6 transition-all duration-300">
                   <div className="flex items-center gap-2 mb-3">
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${catBadge(n.categoria)}`}>{n.categoria}</span>

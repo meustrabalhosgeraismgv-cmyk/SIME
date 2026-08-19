@@ -1,5 +1,6 @@
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
+const { matchInstituicaoId, lookupInstituicao } = require('../utils/filters');
 
 const getFuncionarios = async (req, res) => {
   try {
@@ -17,7 +18,7 @@ const getFuncionarios = async (req, res) => {
         { cargo: { $regex: search, $options: 'i' } }
       ];
     }
-    if (instituicao_id) matchStage.instituicao_id = new ObjectId(instituicao_id);
+    if (instituicao_id) matchStage.instituicao_id = matchInstituicaoId(instituicao_id);
     if (estado) matchStage.estado = estado;
 
     const total = await db.collection('funcionarios').countDocuments(matchStage);
@@ -27,14 +28,7 @@ const getFuncionarios = async (req, res) => {
       { $sort: { nome_completo: 1 } },
       { $skip: skip },
       { $limit: limitNum },
-      {
-        $lookup: {
-          from: 'instituicoes',
-          localField: 'instituicao_id',
-          foreignField: '_id',
-          as: 'instituicao'
-        }
-      },
+      lookupInstituicao('instituicao_id', 'instituicao'),
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
@@ -89,14 +83,7 @@ const getFuncionarioById = async (req, res) => {
     const db = getDB();
     const pipeline = [
       { $match: { _id: new ObjectId(req.params.id) } },
-      {
-        $lookup: {
-          from: 'instituicoes',
-          localField: 'instituicao_id',
-          foreignField: '_id',
-          as: 'instituicao'
-        }
-      },
+      lookupInstituicao('instituicao_id', 'instituicao'),
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {

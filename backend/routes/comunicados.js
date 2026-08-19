@@ -3,6 +3,7 @@ const router = express.Router();
 const { ObjectId } = require('mongodb');
 const { getDB } = require('../config/mongodb');
 const { authenticateToken } = require('../middleware/auth');
+const { oid, matchInstituicaoId } = require('../utils/filters');
 
 router.get('/', async (req, res) => {
   try {
@@ -10,7 +11,7 @@ router.get('/', async (req, res) => {
     const { instituicao_id } = req.query;
     const filter = { publicado: 1 };
     if (instituicao_id) {
-      filter.instituicao_id = instituicao_id;
+      filter.instituicao_id = matchInstituicaoId(instituicao_id);
     }
 
     const comunicados = await db.collection('comunicados').aggregate([
@@ -35,7 +36,7 @@ router.get('/gestor', authenticateToken, async (req, res) => {
     const instituicaoId = usuario?.entidade_id;
 
     const comunicados = await db.collection('comunicados').aggregate([
-      { $match: { instituicao_id: instituicaoId } },
+      { $match: { instituicao_id: matchInstituicaoId(instituicaoId) } },
       { $lookup: { from: 'instituicoes', localField: 'instituicao_id', foreignField: '_id', as: 'instituicao' } },
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       { $addFields: { instituicao_nome: '$instituicao.nome' } },
@@ -58,7 +59,7 @@ router.post('/', authenticateToken, async (req, res) => {
       titulo,
       conteudo,
       tipo,
-      instituicao_id,
+      instituicao_id: oid(instituicao_id) || instituicao_id || null,
       valor: valor || 0,
       data_inicio_inscricao: data_inicio_inscricao || null,
       data_fim_inscricao: data_fim_inscricao || null,

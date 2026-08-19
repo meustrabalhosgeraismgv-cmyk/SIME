@@ -75,6 +75,8 @@ async function start() {
   app.use('/api/rh', require('./routes/rh'));
   app.use('/api/classificacoes', require('./routes/classificacoes'));
   app.use('/api/denuncias', require('./routes/denuncias'));
+  app.use('/api/configs', require('./routes/configs'));
+  app.use('/api/ussd', require('./routes/ussd').router);
 
   app.get('/api/admin/migrate-coords', async (req, res) => {
     const { getDB } = require('./config/mongodb');
