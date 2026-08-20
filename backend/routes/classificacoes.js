@@ -11,8 +11,8 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
 router.get('/', authenticateToken, getClassificacoes);
 router.get('/historico/:id', authenticateToken, getHistoricoAluno);
-router.post('/', authenticateToken, authorizeRole('admin', 'instituicao', 'diretor', 'professor'), createClassificacao);
-router.put('/:id', authenticateToken, authorizeRole('admin', 'instituicao', 'diretor', 'professor'), updateClassificacao);
+router.post('/', authenticateToken, authorizeRole('admin', 'instituicao'), createClassificacao);
+router.put('/:id', authenticateToken, authorizeRole('admin', 'instituicao'), updateClassificacao);
 router.delete('/:id', authenticateToken, authorizeRole('admin'), deleteClassificacao);
 
 module.exports = router;

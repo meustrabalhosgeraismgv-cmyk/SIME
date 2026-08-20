@@ -42,7 +42,7 @@ const RecursosHumanos = () => {
     criterios: {}
   });
 
-  const canEdit = hasRole('admin', 'instituicao', 'diretor');
+  const canEdit = hasRole('admin', 'instituicao');
 
   useEffect(() => {
     loadFuncionarios();

@@ -92,7 +92,7 @@ const Matriculas = () => {
     )},
     { header: 'Ações', accessor: 'acoes', render: (row) => (
       <div className="flex items-center gap-2">
-        {hasRole('admin', 'diretor') && row.estado === 'ativa' && (
+        {hasRole('admin', 'instituicao') && row.estado === 'ativa' && (
           <button 
             onClick={(e) => { e.stopPropagation(); handleCancel(row.id); }}
             className="p-2 hover:bg-error/10 rounded-lg text-error dark:text-error-light dark:hover:bg-error/20"
@@ -112,7 +112,7 @@ const Matriculas = () => {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Matrículas</h2>
           <p className="text-gray-500 dark:text-gray-400">Gestão de matrículas escolares</p>
         </div>
-        {hasRole('admin', 'diretor') && (
+        {hasRole('admin', 'instituicao') && (
           <button 
             onClick={() => { resetForm(); setShowModal(true); }}
             className="btn-primary flex items-center gap-2"

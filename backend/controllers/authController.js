@@ -55,6 +55,9 @@ const register = async (req, res) => {
     if (!username || !password || !perfil) {
       return res.status(400).json({ error: 'Username, password e perfil são obrigatórios' });
     }
+    if (!['admin', 'instituicao', 'encarregado'].includes(perfil)) {
+      return res.status(400).json({ error: 'Perfil inválido' });
+    }
 
     const db = getDB();
     const existingUser = await db.collection('usuarios').findOne({ username });

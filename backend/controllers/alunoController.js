@@ -6,7 +6,7 @@ const { enviarSMS } = require('./smsController');
 const ESTADOS_ALUNO = ['ativo', 'suspenso', 'expulso', 'transferido', 'abandono', 'concluido'];
 
 const podeGerirAluno = (aluno, req) => {
-  if (req.user?.perfil === 'admin' || req.user?.perfil === 'diretor') return true;
+  if (req.user?.perfil === 'admin') return true;
   if (req.user?.perfil === 'instituicao') {
     if (!req.user.entidade_id || !aluno?.instituicao_id) return false;
     return String(aluno.instituicao_id) === String(req.user.entidade_id);

@@ -281,7 +281,7 @@ const Alunos = () => {
     setEditingId(null);
   };
 
-  const podeGerir = hasRole('admin', 'diretor', 'instituicao');
+  const podeGerir = hasRole('admin', 'instituicao');
 
   const columns = [
     { header: 'Nome', accessor: 'nome_completo', render: (row) => (

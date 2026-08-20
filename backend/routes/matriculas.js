@@ -12,7 +12,7 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 router.get('/', authenticateToken, getMatriculas);
 router.get('/encarregado', authenticateToken, getMatriculasEncarregado);
 router.post('/encarregado', authenticateToken, createMatriculaEncarregado);
-router.post('/', authenticateToken, authorizeRole('admin', 'diretor'), createMatricula);
-router.put('/:id/cancelar', authenticateToken, authorizeRole('admin', 'diretor'), cancelMatricula);
+router.post('/', authenticateToken, authorizeRole('admin', 'instituicao'), createMatricula);
+router.put('/:id/cancelar', authenticateToken, authorizeRole('admin', 'instituicao'), cancelMatricula);
 
 module.exports = router;

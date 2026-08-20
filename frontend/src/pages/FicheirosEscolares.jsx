@@ -41,7 +41,7 @@ const FicheirosEscolares = () => {
     data_documento: ''
   });
 
-  const canEdit = hasRole('admin', 'instituicao', 'diretor');
+  const canEdit = hasRole('admin', 'instituicao');
   const isAdmin = hasRole('admin');
 
   useEffect(() => {

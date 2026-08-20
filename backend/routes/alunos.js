@@ -14,7 +14,7 @@ const {
 } = require('../controllers/alunoController');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
-const GESTAO = ['admin', 'diretor', 'instituicao'];
+const GESTAO = ['admin', 'instituicao'];
 
 router.get('/filhos', authenticateToken, authorizeRole('encarregado'), getFilhosEncarregado);
 router.get('/', authenticateToken, getAlunos);

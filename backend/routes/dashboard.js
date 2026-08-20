@@ -8,7 +8,7 @@ const {
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
 router.get('/stats', authenticateToken, getDashboardStats);
-router.get('/provincia', authenticateToken, authorizeRole('admin', 'ministerio'), getEstatisticasProvincia);
+router.get('/provincia', authenticateToken, authorizeRole('admin'), getEstatisticasProvincia);
 router.get('/ocupacao', authenticateToken, getRelatorioOcupacao);
 
 module.exports = router;

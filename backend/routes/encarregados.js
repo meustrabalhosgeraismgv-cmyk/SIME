@@ -11,8 +11,8 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 
 router.get('/', authenticateToken, getEncarregados);
 router.get('/:id', authenticateToken, getEncarregadoById);
-router.post('/', authenticateToken, authorizeRole('admin', 'diretor'), createEncarregado);
-router.put('/:id', authenticateToken, authorizeRole('admin', 'diretor'), updateEncarregado);
-router.delete('/:id', authenticateToken, authorizeRole('admin', 'diretor'), deleteEncarregado);
+router.post('/', authenticateToken, authorizeRole('admin'), createEncarregado);
+router.put('/:id', authenticateToken, authorizeRole('admin'), updateEncarregado);
+router.delete('/:id', authenticateToken, authorizeRole('admin'), deleteEncarregado);
 
 module.exports = router;

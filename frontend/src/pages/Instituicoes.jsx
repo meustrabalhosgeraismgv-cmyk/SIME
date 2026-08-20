@@ -160,7 +160,7 @@ const Instituicoes = () => {
         >
           <Eye className="w-4 h-4" />
         </button>
-        {hasRole('admin', 'ministerio') && (
+        {hasRole('admin') && (
           <>
             <button 
               onClick={(e) => { e.stopPropagation(); handleEdit(row); }}
@@ -187,7 +187,7 @@ const Instituicoes = () => {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Instituições</h2>
           <p className="text-gray-500 dark:text-gray-400">Gestão de instituições de ensino</p>
         </div>
-        {hasRole('admin', 'ministerio') && (
+        {hasRole('admin') && (
           <button 
             onClick={() => { resetForm(); setShowModal(true); }}
             className="btn-primary flex items-center gap-2"
