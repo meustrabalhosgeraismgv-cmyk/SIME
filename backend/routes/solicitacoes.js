@@ -3,6 +3,7 @@ const router = express.Router();
 const { ObjectId } = require('mongodb');
 const { getDB } = require('../config/mongodb');
 const { authenticateToken } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 function emitSolicitacao(io, evento, solicitacao) {
   if (!io) return;
@@ -20,6 +21,8 @@ function toSolicitacao(doc) {
     encarregado_id: doc.encarregado_id ? doc.encarregado_id.toString() : null,
     instituicao_id: doc.instituicao_id ? doc.instituicao_id.toString() : null,
     curso_id: doc.curso_id ? doc.curso_id.toString() : null,
+    turma_id: doc.turma_id ? doc.turma_id.toString() : null,
+    documentos: Array.isArray(doc.documentos) ? doc.documentos : [],
   };
 }
 
@@ -52,6 +55,8 @@ router.get('/admin', authenticateToken, async (req, res) => {
       { $unwind: { path: '$encarregado', preserveNullAndEmptyArrays: true } },
       { $lookup: { from: 'cursos', localField: 'curso_id', foreignField: '_id', as: 'curso' } },
       { $unwind: { path: '$curso', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'turmas', localField: 'turma_id', foreignField: '_id', as: 'turma' } },
+      { $unwind: { path: '$turma', preserveNullAndEmptyArrays: true } },
       { $addFields: {
         id: { $toString: '$_id' },
         encarregado_id: { $toString: '$encarregado_id' },
@@ -61,9 +66,11 @@ router.get('/admin', authenticateToken, async (req, res) => {
         instituicao_tipo: '$instituicao.tipo',
         encarregado_nome: '$encarregado.nome_completo',
         encarregado_telefone: '$encarregado.telefone',
-        curso_nome: '$curso.nome'
+        curso_nome: '$curso.nome',
+        turma_nome: '$turma.nome',
+        turma_nivel: '$turma.nivel'
       } },
-      { $project: { instituicao: 0, encarregado: 0, curso: 0, mun: 0 } },
+      { $project: { instituicao: 0, encarregado: 0, curso: 0, mun: 0, turma: 0 } },
       { $sort: { created_at: -1 } },
       { $limit: 200 }
     ];
@@ -111,12 +118,16 @@ router.get('/gestor', authenticateToken, async (req, res) => {
       { $unwind: { path: '$encarregado', preserveNullAndEmptyArrays: true } },
       { $lookup: { from: 'comunicados', localField: 'comunicado_id', foreignField: '_id', as: 'comunicado' } },
       { $unwind: { path: '$comunicado', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'turmas', localField: 'turma_id', foreignField: '_id', as: 'turma' } },
+      { $unwind: { path: '$turma', preserveNullAndEmptyArrays: true } },
       { $addFields: {
         encarregado_nome: '$encarregado.nome_completo',
         encarregado_telefone: '$encarregado.telefone',
-        comunicado_titulo: '$comunicado.titulo'
+        comunicado_titulo: '$comunicado.titulo',
+        turma_nome: '$turma.nome',
+        turma_nivel: '$turma.nivel'
       } },
-      { $project: { encarregado: 0, comunicado: 0 } },
+      { $project: { encarregado: 0, comunicado: 0, turma: 0 } },
       { $sort: { created_at: -1 } }
     ]).toArray();
 
@@ -138,11 +149,15 @@ router.get('/encarregado', authenticateToken, async (req, res) => {
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
       { $lookup: { from: 'comunicados', localField: 'comunicado_id', foreignField: '_id', as: 'comunicado' } },
       { $unwind: { path: '$comunicado', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'turmas', localField: 'turma_id', foreignField: '_id', as: 'turma' } },
+      { $unwind: { path: '$turma', preserveNullAndEmptyArrays: true } },
       { $addFields: {
         instituicao_nome: '$instituicao.nome',
-        comunicado_titulo: '$comunicado.titulo'
+        comunicado_titulo: '$comunicado.titulo',
+        turma_nome: '$turma.nome',
+        turma_nivel: '$turma.nivel'
       } },
-      { $project: { instituicao: 0, comunicado: 0 } },
+      { $project: { instituicao: 0, comunicado: 0, turma: 0 } },
       { $sort: { created_at: -1 } }
     ]).toArray();
 
@@ -157,11 +172,20 @@ router.post('/', authenticateToken, async (req, res) => {
     const db = getDB();
     const {
       instituicao_id, comunicado_id, aluno_nome, aluno_data_nascimento,
-      aluno_sexo, curso_id, necessidades_especiais, aluno_bi, observacoes
+      aluno_sexo, curso_id, turma_id, necessidades_especiais, aluno_bi,
+      observacoes, documentos
     } = req.body;
     const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
     const encarregadoId = usuario?.entidade_id;
-    if (!encarregadoId) return res.status(400).json({ error: 'Encarregado não encontrado' });
+    if (!encarregadoId) return res.status(400).json({ error: 'Encarregado nǜo encontrado' });
+
+    if (turma_id) {
+      const turma = await db.collection('turmas').findOne({ _id: new ObjectId(turma_id) });
+      if (!turma) return res.status(400).json({ error: 'Turma não encontrada' });
+      if ((turma.vagas_ocupadas || 0) >= (turma.vagas || 0)) {
+        return res.status(400).json({ error: 'A turma selecionada já não tem vagas disponíveis' });
+      }
+    }
 
     const now = new Date();
     const result = await db.collection('solicitacoes').insertOne({
@@ -172,9 +196,11 @@ router.post('/', authenticateToken, async (req, res) => {
       aluno_data_nascimento: aluno_data_nascimento || null,
       aluno_sexo: aluno_sexo || null,
       curso_id: curso_id || null,
+      turma_id: turma_id ? new ObjectId(turma_id) : null,
       aluno_bi: aluno_bi || null,
       necessidades_especiais: necessidades_especiais || '',
       observacoes: observacoes || '',
+      documentos: Array.isArray(documentos) ? documentos : [],
       estado: 'pendente',
       historico: [{ estado: 'pendente', data: now, autor: usuario.nome || usuario.username }],
       created_at: now
@@ -239,5 +265,15 @@ router.put('/:id/agendar', authenticateToken, (req, res) => atualizarEstado(req,
 router.put('/:id/inscrever', authenticateToken, (req, res) => atualizarEstado(req, res, 'inscrito'));
 
 router.put('/:id/retomar', authenticateToken, (req, res) => atualizarEstado(req, res, 'aceite'));
+
+router.post('/upload-documento', authenticateToken, upload.documentos.single('ficheiro'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado' });
+    const url = `/uploads/documentos/${req.file.filename}`;
+    res.status(201).json({ url, message: 'Documento carregado' });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Erro ao carregar documento' });
+  }
+});
 
 module.exports = router;

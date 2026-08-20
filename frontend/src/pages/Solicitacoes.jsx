@@ -154,11 +154,17 @@ const Solicitacoes = () => {
                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                       <span className="flex items-center gap-1">
                         <School className="w-3 h-3" /> {sol.instituicao_nome}
+                        {sol.turma_nome && <span className="text-primary-500 font-medium"> • {sol.turma_nome}</span>}
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" /> {new Date(sol.created_at).toLocaleDateString('pt-AO')}
                       </span>
                     </div>
+                    {(sol.documentos || []).length > 0 && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Documentos anexados: {sol.documentos.length} ({sol.documentos.map(d => d.nome).join(', ')})
+                      </p>
+                    )}
                     {sol.comunicado_titulo && (
                       <p className="mt-1 text-xs text-gray-400 flex items-center gap-1">
                         <FileText className="w-3 h-3" /> {sol.comunicado_titulo}

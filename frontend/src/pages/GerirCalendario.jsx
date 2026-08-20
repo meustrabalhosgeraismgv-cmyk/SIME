@@ -38,7 +38,7 @@ const GerirCalendario = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await calendarioService.getAll({});
+      const res = await calendarService.getAll({});
       const data = Array.isArray(res.data) ? res.data : res.data.data || [];
       setEventos(data);
     } catch (e) {
@@ -84,10 +84,10 @@ const GerirCalendario = () => {
     setSaving(true);
     try {
       if (editing) {
-        await calendarioService.update(editing._id || editing.id, form);
+        await calendarService.update(editing._id || editing.id, form);
         showToast({ message: 'Evento atualizado com sucesso', type: 'success' });
       } else {
-        await calendarioService.create(form);
+        await calendarService.create(form);
         showToast({ message: 'Evento criado com sucesso', type: 'success' });
       }
       setShowModal(false);
@@ -102,7 +102,7 @@ const GerirCalendario = () => {
   const excluir = async (e) => {
     if (!confirm(`Eliminar o evento "${e.titulo}"?`)) return;
     try {
-      await calendarioService.delete(e._id || e.id);
+      await calendarService.delete(e._id || e.id);
       showToast({ message: 'Evento eliminado', type: 'success' });
       load();
     } catch (err) {
@@ -166,7 +166,7 @@ const GerirCalendario = () => {
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 font-medium">{tipoLabel(e.tipo)}</span>
                     </div>
                     {e.descricao && <p className={`text-sm ${subtext} mt-1 line-clamp-2`}>{e.descricao}</p>}
-                    <div className="flex items-center gap-4 mt-1 text-xs ${subtext}">
+                    <div className={`flex items-center gap-4 mt-1 text-xs ${subtext}`}>
                       <span className={subtext}>
                         {e.data_inicio ? new Date(e.data_inicio).toLocaleDateString('pt-AO') : ''}
                         {e.data_fim && e.data_fim !== e.data_inicio ? ` — ${new Date(e.data_fim).toLocaleDateString('pt-AO')}` : ''}

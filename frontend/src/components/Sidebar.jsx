@@ -105,6 +105,7 @@ const Sidebar = () => {
       items: [
         { icon: BarChart3, label: 'Gerir Vagas', path: '/app/gerir-vagas' },
         { icon: CheckCircle, label: 'Aceitar Solicitações', path: '/app/solicitacoes-gestor' },
+        { icon: FileText, label: 'Requisitos de Inscrição', path: '/app/requisitos-inscricao' },
       ]
     },
     {

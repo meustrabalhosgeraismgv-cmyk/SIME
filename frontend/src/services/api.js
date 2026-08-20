@@ -172,6 +172,21 @@ export const solicitacaoService = {
   rejeitar: (id, data) => api.put(`/solicitacoes/${id}/rejeitar`, data),
   agendar: (id, data) => api.put(`/solicitacoes/${id}/agendar`, data),
   inscrever: (id) => api.put(`/solicitacoes/${id}/inscrever`),
+  uploadDocumento: (file) => {
+    const formData = new FormData();
+    formData.append('ficheiro', file);
+    return api.post('/solicitacoes/upload-documento', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+};
+
+export const requisitoInscricaoService = {
+  getPublica: (instituicaoId) => api.get(`/configuracao-inscricao/${instituicaoId}`),
+  getMinha: (instituicaoId) => api.get(`/configuracao-inscricao/${instituicaoId}/me`),
+  gerarComAssistente: (instituicaoId, ciclos) => api.post('/configuracao-inscricao/gerar', { instituicao_id: instituicaoId, ciclos_selecionados: ciclos }),
+  salvar: (instituicaoId, data) => api.put(`/configuracao-inscricao/${instituicaoId}`, data),
+  aprovar: (instituicaoId) => api.post(`/configuracao-inscricao/${instituicaoId}/aprovar`),
 };
 
 export const pagamentoService = {

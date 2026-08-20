@@ -114,6 +114,25 @@ const SolicitacoesGestor = () => {
                   <p className={`text-sm ${subtext}`}>
                     Encarregado: {s.encarregado_nome} • Tel: {s.encarregado_telefone}
                   </p>
+                  {s.turma_nome && (
+                    <p className={`text-xs mt-1 text-primary-500 font-medium`}>Turma pretendida: {s.turma_nome}</p>
+                  )}
+                  {(s.documentos || []).length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {s.documentos.map((d, i) => (
+                        d.url ? (
+                          <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:underline">
+                            {d.nome || d.chave}
+                          </a>
+                        ) : (
+                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-600 dark:bg-navy-700 dark:text-gray-400">
+                            {d.nome || d.chave}
+                          </span>
+                        )
+                      ))}
+                    </div>
+                  )}
                   {s.comunicado_titulo && (
                     <p className="text-xs text-primary-500 mt-1">Comunicado: {s.comunicado_titulo}</p>
                   )}

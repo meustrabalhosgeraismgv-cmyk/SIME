@@ -150,6 +150,8 @@ const getMatriculasEncarregado = async (req, res) => {
       { $unwind: { path: '$aluno', preserveNullAndEmptyArrays: true } },
       { $lookup: { from: 'instituicoes', localField: 'instituicao_id', foreignField: '_id', as: 'instituicao' } },
       { $unwind: { path: '$instituicao', preserveNullAndEmptyArrays: true } },
+      { $lookup: { from: 'turmas', localField: 'turma_id', foreignField: '_id', as: 'turma' } },
+      { $unwind: { path: '$turma', preserveNullAndEmptyArrays: true } },
       { $lookup: { from: 'cursos', localField: 'curso_id', foreignField: '_id', as: 'curso' } },
       { $unwind: { path: '$curso', preserveNullAndEmptyArrays: true } },
       { $addFields: {
@@ -157,9 +159,9 @@ const getMatriculasEncarregado = async (req, res) => {
         aluno_nome: '$aluno.nome_completo',
         numero_estudante: '$aluno.numero_estudante',
         instituicao_nome: '$instituicao.nome',
-        turma_nome: '$curso.nome'
+        turma_nome: { $ifNull: ['$turma.nome', '$curso.nome'] }
       } },
-      { $project: { aluno: 0, instituicao: 0, curso: 0 } }
+      { $project: { aluno: 0, instituicao: 0, curso: 0, turma: 0 } }
     ]).toArray();
 
     res.json({ data: matriculas });
@@ -219,9 +221,18 @@ const createMatriculaEncarregado = async (req, res) => {
     }
 
     const ano_letivo = new Date().getFullYear();
-    const curso_id = solicitacao.curso_id ? new ObjectId(solicitacao.curso_id) : null;
+    const turma_id = solicitacao.turma_id ? new ObjectId(solicitacao.turma_id) : null;
+    const curso_id = solicitacao.curso_id ? new ObjectId(solicitacao.curso_id) : turma_id;
 
-    if (curso_id) {
+    let turma = null;
+    if (turma_id) {
+      turma = await db.collection('turmas').findOne({ _id: turma_id });
+      if (turma && (turma.vagas_ocupadas || 0) >= (turma.vagas || 0)) {
+        return res.status(400).json({ error: 'A turma selecionada já não tem vagas disponíveis' });
+      }
+    }
+
+    if (curso_id && !turma) {
       const curso = await db.collection('cursos').findOne({ _id: curso_id });
       if (curso && (curso.vagas_disponiveis || 0) <= 0) {
         return res.status(400).json({ error: 'A turma selecionada já não tem vagas disponíveis' });
@@ -238,7 +249,7 @@ const createMatriculaEncarregado = async (req, res) => {
       encarregado_id: encarregadoId,
       instituicao_id: instituicaoId,
       curso_id,
-      turma_id: curso_id,
+      turma_id,
       solicitacao_id: solicitacao._id,
       ano_letivo,
       estado: 'ativa',
@@ -246,7 +257,12 @@ const createMatriculaEncarregado = async (req, res) => {
       created_at: new Date()
     });
 
-    if (curso_id) {
+    if (turma) {
+      await db.collection('turmas').updateOne(
+        { _id: turma._id },
+        { $inc: { vagas_ocupadas: 1 } }
+      );
+    } else if (curso_id) {
       await db.collection('cursos').updateOne(
         { _id: curso_id },
         { $inc: { vagas_disponiveis: -1 } }

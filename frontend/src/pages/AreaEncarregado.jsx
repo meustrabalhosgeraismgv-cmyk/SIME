@@ -7,7 +7,7 @@ import {
   CheckCircle, XCircle, Clock, Calendar, RefreshCw, BookOpen,
   AlertCircle, HeartHandshake
 } from 'lucide-react';
-import { solicitacaoService, matriculaService, instituicaoService, cursoService, authService, alunoService, classificacaoService } from '../services/api';
+import { solicitacaoService, matriculaService, instituicaoService, turmaService, requisitoInscricaoService, authService, alunoService, classificacaoService } from '../services/api';
 import { connectSocket, getSocket } from '../services/socketClient';
 
 const ESTADO_CONFIG = {
@@ -30,15 +30,19 @@ const AreaEncarregado = () => {
   const [boletins, setBoletins] = useState({});
   const [boletimAberto, setBoletimAberto] = useState({});
   const [escolas, setEscolas] = useState([]);
-  const [cursos, setCursos] = useState([]);
+  const [turmas, setTurmas] = useState([]);
+  const [requisitos, setRequisitos] = useState([]);
+  const [requisitoOrigem, setRequisitoOrigem] = useState('');
+  const [docs, setDocs] = useState({});
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [alertMsg, setAlertMsg] = useState(null);
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     instituicao_id: '',
-    curso_id: '',
+    turma_id: '',
     aluno_nome: '',
     aluno_data_nascimento: '',
     aluno_sexo: 'M',
@@ -101,43 +105,116 @@ const AreaEncarregado = () => {
     };
   }, [user]);
 
-  const carregarCursos = async (instituicaoId) => {
-    if (!instituicaoId) { setCursos([]); return; }
+  const carregarTurmas = async (instituicaoId) => {
+    if (!instituicaoId) { setTurmas([]); setRequisitos([]); setDocs({}); return; }
     try {
-      const res = await cursoService.getByInstituicao(instituicaoId);
-      setCursos((res.data.data || []).filter(c => c.tipo === 'turma' && c.estado === 'ativo'));
-    } catch (e) { setCursos([]); }
+      const res = await turmaService.getAll({ instituicao_id: instituicaoId, limit: 100 });
+      const lista = (res.data.data || []).filter(t => (t.vagas || 0) - (t.vagas_ocupadas || 0) > 0);
+      setTurmas(lista);
+    } catch (e) { setTurmas([]); }
+  };
+
+  const carregarRequisitos = async (instituicaoId, turma) => {
+    setRequisitos([]);
+    setDocs({});
+    if (!instituicaoId) return;
+    try {
+      const res = await requisitoInscricaoService.getPublica(instituicaoId);
+      const config = res.data?.data || {};
+      const nivel = turma?.nivel;
+      const ciclo = (config.ciclos || []).find(c => nivel && (c.niveis || []).includes(nivel)) || (config.ciclos || [])[0];
+      setRequisitos(ciclo?.requisitos || []);
+      setRequisitoOrigem(config.estado === 'padrao' ? 'padrão do sistema' : config.estado);
+    } catch (e) {
+      setRequisitos([]);
+      setRequisitoOrigem('');
+    }
   };
 
   const handleInstituicaoChange = (id) => {
-    setForm({ ...form, instituicao_id: id, curso_id: '' });
-    carregarCursos(id);
+    setForm({ ...form, instituicao_id: id, turma_id: '' });
+    setRequisitos([]);
+    setDocs({});
+    carregarTurmas(id);
+  };
+
+  const handleTurmaChange = (id) => {
+    const turma = turmas.find(t => (t._id || t.id) === id);
+    setForm({ ...form, turma_id: id });
+    carregarRequisitos(form.instituicao_id, turma);
+  };
+
+  const onFileSelect = (chave, file) => {
+    setDocs(prev => ({
+      ...prev,
+      [chave]: [...(prev[chave] || []), file]
+    }));
+  };
+
+  const removerDoc = (chave, idx) => {
+    setDocs(prev => ({
+      ...prev,
+      [chave]: (prev[chave] || []).filter((_, i) => i !== idx)
+    }));
+  };
+
+  const uploadDocumentos = async () => {
+    const documentos = [];
+    for (const chave of Object.keys(docs)) {
+      const ficheiros = docs[chave] || [];
+      for (const ficheiro of ficheiros) {
+        const res = await solicitacaoService.uploadDocumento(ficheiro);
+        const requisito = requisitos.find(r => r.chave === chave);
+        documentos.push({
+          chave,
+          nome: requisito?.nome || chave,
+          url: res.data?.url,
+          nome_ficheiro: ficheiro.name,
+          tamanho: ficheiro.size
+        });
+      }
+    }
+    return documentos;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.instituicao_id) { setAlertMsg({ type: 'error', message: 'Selecione a instituição' }); return; }
+    if (!form.turma_id) { setAlertMsg({ type: 'error', message: 'Selecione a turma/classe pretendida' }); return; }
     if (!form.aluno_nome.trim()) { setAlertMsg({ type: 'error', message: 'Indique o nome do aluno' }); return; }
+    const obrigatorios = requisitos.filter(r => r.obrigatorio);
+    for (const r of obrigatorios) {
+      if (!(docs[r.chave] || []).length) {
+        setAlertMsg({ type: 'error', message: `É obrigatório anexar: ${r.nome}` });
+        return;
+      }
+    }
     setSending(true);
+    setUploading(true);
     setAlertMsg(null);
     try {
+      const documentos = await uploadDocumentos();
       await solicitacaoService.create({
         instituicao_id: form.instituicao_id,
-        curso_id: form.curso_id || null,
+        turma_id: form.turma_id || null,
         aluno_nome: form.aluno_nome,
         aluno_data_nascimento: form.aluno_data_nascimento || null,
         aluno_sexo: form.aluno_sexo,
         aluno_bi: form.aluno_bi || null,
         necessidades_especiais: form.necessidades_especiais || '',
+        documentos,
       });
       setAlertMsg({ type: 'success', message: 'Solicitação de vaga enviada com sucesso! A instituição vai analisar o seu pedido.' });
       setShowForm(false);
-      setForm({ instituicao_id: '', curso_id: '', aluno_nome: '', aluno_data_nascimento: '', aluno_sexo: 'M', aluno_bi: '', necessidades_especiais: '' });
+      setForm({ instituicao_id: '', turma_id: '', aluno_nome: '', aluno_data_nascimento: '', aluno_sexo: 'M', aluno_bi: '', necessidades_especiais: '' });
+      setDocs({});
+      setRequisitos([]);
       loadAll();
     } catch (err) {
       setAlertMsg({ type: 'error', message: err.response?.data?.error || 'Erro ao enviar solicitação' });
     } finally {
       setSending(false);
+      setUploading(false);
     }
   };
 
@@ -271,14 +348,19 @@ const AreaEncarregado = () => {
                   </select>
                 </div>
                 <div>
-                  <label className={`block text-sm font-medium ${subtext} mb-1`}>Turma / Classe Pretendida</label>
-                  <select value={form.curso_id} onChange={e => setForm({ ...form, curso_id: e.target.value })}
-                    className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`}>
+                  <label className={`block text-sm font-medium ${subtext} mb-1`}>Turma / Classe Pretendida *</label>
+                  <select value={form.turma_id} onChange={e => handleTurmaChange(e.target.value)}
+                    className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`} required>
                     <option value="">Selecione...</option>
-                    {cursos.map(c => (
-                      <option key={c._id || c.id} value={c._id || c.id}>{c.nome} — {c.vagas_disponiveis} vagas</option>
+                    {turmas.map(c => (
+                      <option key={c._id || c.id} value={c._id || c.id}>
+                        {c.nome} — {(c.vagas || 0) - (c.vagas_ocupadas || 0)} vagas
+                      </option>
                     ))}
                   </select>
+                  {turmas.length === 0 && (
+                    <p className={`text-xs mt-1 ${subtext}`}>A instituição selecionada ainda não tem turmas com vagas disponíveis.</p>
+                  )}
                 </div>
                 <div>
                   <label className={`block text-sm font-medium ${subtext} mb-1`}>Nome Completo do Aluno *</label>
@@ -304,6 +386,55 @@ const AreaEncarregado = () => {
                   </select>
                 </div>
               </div>
+              {form.turma_id && (
+                <div className={`p-4 rounded-xl border ${requisitos.length ? 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10' : 'border-gray-200 dark:border-navy-700 bg-gray-50 dark:bg-navy-800'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertCircle className="w-4 h-4 text-amber-500" />
+                    <h3 className={`text-sm font-semibold ${text}`}>Documentos exigidos para a inscrição</h3>
+                  </div>
+                  <p className={`text-xs ${subtext} mb-3`}>
+                    Requisitos definidos pela instituição{requisitoOrigem ? ` (${requisitoOrigem})` : ''}. Anexe os ficheiros (PDF, JPG ou PNG).
+                  </p>
+                  {requisitos.length === 0 ? (
+                    <p className={`text-xs ${subtext}`}>Nenhum documento exigido para esta turma.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {requisitos.map(r => {
+                        const ficheiros = docs[r.chave] || [];
+                        return (
+                          <div key={r.chave} className="flex flex-col md:flex-row md:items-center gap-2 justify-between">
+                            <div className="flex-1">
+                              <p className={`text-sm font-medium ${text}`}>
+                                {r.nome} {r.obrigatorio ? <span className="text-red-500">*</span> : <span className={`text-xs ${subtext}`}>(opcional)</span>}
+                              </p>
+                              {r.descricao && <p className={`text-xs ${subtext}`}>{r.descricao}</p>}
+                              {ficheiros.length > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {ficheiros.map((f, i) => (
+                                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                      {f.name}
+                                      <button type="button" onClick={() => removerDoc(r.chave, i)} className="hover:text-red-600">✕</button>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <label className={`cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${card} ${text} hover:bg-primary-50 dark:hover:bg-navy-700`}>
+                              <Plus className="w-3.5 h-3.5" /> {ficheiros.length ? 'Adicionar' : 'Anexar'}
+                              <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                                onChange={e => {
+                                  const f = e.target.files && e.target.files[0];
+                                  if (f) onFileSelect(r.chave, f);
+                                  e.target.value = '';
+                                }} />
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               <div>
                 <label className={`block text-sm font-medium ${subtext} mb-1 flex items-center gap-1`}>
                   <HeartHandshake className="w-4 h-4 text-primary-500" /> Necessidades Educativas Especiais
@@ -315,10 +446,10 @@ const AreaEncarregado = () => {
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setShowForm(false)}
                   className={`px-4 py-2 rounded-xl border ${input} ${text} text-sm`}>Cancelar</button>
-                <button type="submit" disabled={sending}
+                <button type="submit" disabled={sending || uploading}
                   className="flex items-center gap-2 px-5 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-xl text-sm font-medium disabled:opacity-50">
-                  {sending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Enviar Solicitação
+                  {(sending || uploading) && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {uploading ? 'A enviar documentos...' : 'Enviar Solicitação'}
                 </button>
               </div>
             </form>
@@ -465,8 +596,14 @@ const AreaEncarregado = () => {
                         </div>
                         <p className={`text-sm ${subtext} mt-1`}>
                           <School className="w-3.5 h-3.5 inline mr-1" /> {sol.instituicao_nome || '—'}
+                          {sol.turma_nome && <span className="text-primary-500 font-medium"> • {sol.turma_nome}</span>}
                         </p>
                         <p className={`text-xs ${subtext}`}>{new Date(sol.created_at).toLocaleDateString('pt-AO')}</p>
+                        {(sol.documentos || []).length > 0 && (
+                          <p className={`mt-1 text-xs ${subtext}`}>
+                            Documentos anexados: {sol.documentos.length} ({sol.documentos.map(d => d.nome).join(', ')})
+                          </p>
+                        )}
                         {sol.necessidades_especiais && (
                           <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
                             <HeartHandshake className="w-3 h-3" /> {sol.necessidades_especiais}

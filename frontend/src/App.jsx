@@ -36,6 +36,7 @@ import Relatorios from './pages/Relatorios';
 import GerirInstituicao from './pages/GerirInstituicao';
 import GerirVagas from './pages/GerirVagas';
 import SolicitacoesGestor from './pages/SolicitacoesGestor';
+import RequisitosInscricao from './pages/RequisitosInscricao';
 import ComunicadosGestor from './pages/ComunicadosGestor';
 import NoticiasInstituicao from './pages/NoticiasInstituicao';
 import AreaEncarregado from './pages/AreaEncarregado';
@@ -114,6 +115,7 @@ const AppRoutes = () => {
         <Route path="gerir-instituicao" element={<GerirInstituicao />} />
         <Route path="gerir-vagas" element={<GerirVagas />} />
         <Route path="solicitacoes-gestor" element={<SolicitacoesGestor />} />
+        <Route path="requisitos-inscricao" element={<RequisitosInscricao />} />
         <Route path="comunicados" element={<ComunicadosGestor />} />
         <Route path="noticias-instituicao" element={<NoticiasInstituicao />} />
         <Route path="noticias" element={<GestaoNoticias />} />

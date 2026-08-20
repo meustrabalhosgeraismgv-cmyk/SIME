@@ -63,6 +63,7 @@ async function start() {
   app.use('/api/calendario', require('./routes/calendario'));
   app.use('/api/comunicados', require('./routes/comunicados'));
   app.use('/api/solicitacoes', require('./routes/solicitacoes'));
+  app.use('/api/configuracao-inscricao', require('./routes/configuracao-inscricao'));
   app.use('/api/pagamentos', require('./routes/pagamentos'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api/cursos', require('./routes/cursos'));
