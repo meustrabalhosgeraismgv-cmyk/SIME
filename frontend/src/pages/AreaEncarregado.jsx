@@ -5,9 +5,9 @@ import { useTheme } from '../contexts/ThemeContext';
 import {
   Users, ClipboardList, School, GraduationCap, Loader2, Plus,
   CheckCircle, XCircle, Clock, Calendar, RefreshCw, BookOpen,
-  AlertCircle, HeartHandshake, Download
+  AlertCircle, HeartHandshake, Download, Wallet, Upload, CreditCard, Bell, FileText
 } from 'lucide-react';
-import { solicitacaoService, matriculaService, instituicaoService, turmaService, requisitoInscricaoService, authService, alunoService, classificacaoService } from '../services/api';
+import { solicitacaoService, matriculaService, instituicaoService, turmaService, requisitoInscricaoService, requisitoMatriculaService, configuracaoFinanceiraService, configuracaoGlobalService, pagamentoService, comunicadoService, authService, alunoService, classificacaoService } from '../services/api';
 import { connectSocket, getSocket } from '../services/socketClient';
 
 const ESTADO_CONFIG = {
@@ -36,6 +36,13 @@ const AreaEncarregado = () => {
   const [formularioConfig, setFormularioConfig] = useState(null);
   const [formRespostas, setFormRespostas] = useState({});
   const [docs, setDocs] = useState({});
+  const [pagamentos, setPagamentos] = useState([]);
+  const [plataformaAtiva, setPlataformaAtiva] = useState(false);
+  const [notificacoes, setNotificacoes] = useState([]);
+  const [matriculaRequisitos, setMatriculaRequisitos] = useState([]);
+  const [reqConfirmados, setReqConfirmados] = useState([]);
+  const [matriculaAberta, setMatriculaAberta] = useState(null);
+  const [financeira, setFinanceira] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -54,18 +61,24 @@ const AreaEncarregado = () => {
 
   const loadAll = useCallback(async () => {
     try {
-      const [perfilRes, solRes, matRes, escolaRes, filhosRes] = await Promise.all([
+      const [perfilRes, solRes, matRes, escolaRes, filhosRes, pagRes, globalRes, notifRes] = await Promise.all([
         authService.getPerfilCompleto().catch(() => null),
         solicitacaoService.getEncarregado().catch(() => ({ data: { data: [] } })),
         matriculaService.getEncarregado().catch(() => ({ data: { data: [] } })),
         instituicaoService.getAll({ limit: 100 }).catch(() => ({ data: { data: [] } })),
         alunoService.getFilhos().catch(() => ({ data: { data: [] } })),
+        pagamentoService.getEncarregado().catch(() => ({ data: { data: [] } })),
+        configuracaoGlobalService.get().catch(() => ({ data: { data: {} } })),
+        comunicadoService.getAll({ destinatario_id: user?.entidade_id }).catch(() => ({ data: { data: [] } })),
       ]);
       setPerfil(perfilRes?.data || null);
       setSolicitacoes(solRes.data.data || []);
       setMatriculas(matRes.data.data || []);
       setEscolas(escolaRes.data.data || []);
       setFilhosBoletim(filhosRes.data.data || []);
+      setPagamentos(pagRes.data.data || []);
+      setPlataformaAtiva(!!globalRes.data.data?.pagamento_plataforma_ativado);
+      setNotificacoes(notifRes.data.data || []);
 
       const mapaBoletins = {};
       for (const filho of filhosRes.data.data || []) {
@@ -240,12 +253,97 @@ const AreaEncarregado = () => {
     }
   };
 
-  const fazerMatricula = async (solicitacao) => {
-    if (!confirm(`Confirmar a matrícula online de "${solicitacao.aluno_nome}" na ${solicitacao.instituicao_nome}?`)) return;
-    setSending(true);
+  const abrirMatricula = async (solicitacao) => {
+    setMatriculaAberta(solicitacao);
+    setReqConfirmados([]);
     try {
-      const res = await matriculaService.createEncarregado({ solicitacao_id: solicitacao.id });
-      setAlertMsg({ type: 'success', message: `Matrícula realizada! Nº de estudante: ${res.data.numero_estudante}` });
+      const [reqRes, finRes] = await Promise.all([
+        requisitoMatriculaService.getPublica(solicitacao.instituicao_id).catch(() => ({ data: { data: null } })),
+        configuracaoFinanceiraService.getPublica(solicitacao.instituicao_id).catch(() => ({ data: { data: null } })),
+      ]);
+      const config = reqRes.data?.data || {};
+      const nivel = solicitacao.turma_nivel;
+      const ciclo = (config.ciclos || []).find(c => nivel && (c.niveis || []).includes(nivel)) || (config.ciclos || [])[0];
+      setMatriculaRequisitos(ciclo?.requisitos || []);
+      setFinanceira(finRes.data?.data || null);
+    } catch (e) {
+      setMatriculaRequisitos([]);
+      setFinanceira(null);
+    }
+  };
+
+  const fecharMatricula = () => {
+    setMatriculaAberta(null);
+    setMatriculaRequisitos([]);
+    setReqConfirmados([]);
+  };
+
+  const confirmarRequisito = (chave, checked) => {
+    setReqConfirmados(prev => checked ? [...prev, chave] : prev.filter(c => c !== chave));
+  };
+
+  const transacoesDaSolicitacao = (solicitacaoId) => {
+    return pagamentos.filter(p => p.solicitacao_id === solicitacaoId && ['matricula', 'mensalidade'].includes(p.tipo_taxa));
+  };
+
+  const criarPagamentoMatricula = async (solicitacao) => {
+    const fin = financeira;
+    if (!fin) return;
+    const valor = fin.emolumento_matricula?.ativo ? (parseFloat(fin.emolumento_matricula.valor) || 0) : 0;
+    if (valor <= 0) return;
+    setSending(true);
+    setAlertMsg(null);
+    try {
+      await pagamentoService.criar({
+        instituicao_id: solicitacao.instituicao_id,
+        tipo_taxa: 'matricula',
+        valor,
+        solicitacao_id: solicitacao.id,
+      });
+      loadAll();
+    } catch (e) {
+      setAlertMsg({ type: 'error', message: e.response?.data?.error || 'Erro ao gerar referência de matrícula' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const pagarTransacao = async (id) => {
+    setSending(true);
+    setAlertMsg(null);
+    try {
+      const res = await pagamentoService.pagarPlataforma(id);
+      setAlertMsg({ type: 'success', message: res.data?.message || 'Pagamento efetuado pela plataforma' });
+      loadAll();
+    } catch (e) {
+      setAlertMsg({ type: 'error', message: e.response?.data?.error || 'Erro ao pagar pela plataforma' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const carregarComprovativo = async (id, file) => {
+    if (!file) return;
+    setSending(true);
+    setAlertMsg(null);
+    try {
+      const res = await pagamentoService.uploadComprovativo(id, file);
+      setAlertMsg({ type: 'success', message: res.data?.message || 'Comprovativo carregado. Aguarde a confirmação.' });
+      loadAll();
+    } catch (e) {
+      setAlertMsg({ type: 'error', message: e.response?.data?.error || 'Erro ao carregar comprovativo' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const fazerMatricula = async (solicitacao) => {
+    setSending(true);
+    setAlertMsg(null);
+    try {
+      const res = await matriculaService.createEncarregado({ solicitacao_id: solicitacao.id, requisitos_confirmados: reqConfirmados });
+      setAlertMsg({ type: 'success', message: `Matrícula realizada! Nº de estudante: ${res.data.numero_estudante} • Nº de processo: ${res.data.numero_processo}` });
+      fecharMatricula();
       loadAll();
     } catch (err) {
       setAlertMsg({ type: 'error', message: err.response?.data?.error || 'Erro ao fazer a matrícula' });
@@ -340,6 +438,38 @@ const AreaEncarregado = () => {
             <p className={`text-sm ${subtext}`}>Matrículas Feitas</p>
           </div>
         </div>
+
+        {/* Notificações / Comunicados pessoais */}
+        {notificacoes.length > 0 && (
+          <div className={`${card} border rounded-2xl overflow-hidden`}>
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-navy-700 flex items-center gap-2">
+              <Bell className="w-5 h-5 text-primary-500" />
+              <h2 className={`text-lg font-semibold ${text}`}>Notificações do Processo ({notificacoes.length})</h2>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-navy-700">
+              {notificacoes.map(n => (
+                <div key={n._id || n.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-medium ${text}`}>{n.titulo}</p>
+                      {n.instituicao_nome && <p className={`text-xs ${subtext}`}>{n.instituicao_nome}</p>}
+                      {n.conteudo && <p className={`text-sm ${subtext} mt-1`}>{n.conteudo}</p>}
+                      {n.valor > 0 && (
+                        <p className={`text-xs font-medium text-amber-600 mt-1`}>Valor: {(parseFloat(n.valor) || 0).toLocaleString('pt-AO')} Kz</p>
+                      )}
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+                      n.tipo === 'vaga_aceite' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {n.tipo === 'vaga_aceite' ? 'Vaga Aceite' : n.tipo === 'aviso_pagamento' ? 'Aviso de Pagamento' : n.tipo}
+                    </span>
+                  </div>
+                  <p className={`text-[11px] ${subtext} mt-1`}>{new Date(n.created_at).toLocaleString('pt-AO')}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Nova Solicitação form */}
         {showForm && (
@@ -694,11 +824,45 @@ const AreaEncarregado = () => {
                         <p className={`mt-2 text-xs font-medium ${sol.estado === 'rejeitada' ? 'text-red-500' : sol.estado === 'aceite' ? 'text-green-600' : 'text-primary-500'}`}>
                           {getProximoPasso(sol)}
                         </p>
+                        {pagamentos.filter(p => p.solicitacao_id === sol.id && p.tipo_taxa === 'inscricao').map(p => (
+                          <div key={p.id} className="mt-2 flex flex-col md:flex-row md:items-center gap-2 justify-between p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Wallet className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className={`text-xs font-medium ${text}`}>{p.tipo_taxa_nome || 'Emolumento de Inscrição'} — {p.descricao}</p>
+                                <p className={`text-xs ${subtext}`}>
+                                  {p.referencia ? `Ref: ${p.referencia} • ` : ''}{(parseFloat(p.valor) || 0).toLocaleString('pt-AO')} Kz •{' '}
+                                  {p.estado === 'pendente' ? 'A aguardar pagamento' : p.estado === 'pago' ? 'Comprovativo enviado' : 'Pago'}
+                                </p>
+                              </div>
+                            </div>
+                            {p.estado === 'pendente' && (
+                              <div className="flex gap-2 flex-shrink-0">
+                                {plataformaAtiva ? (
+                                  <button onClick={() => pagarTransacao(p.id)} disabled={sending}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+                                    <CreditCard className="w-3.5 h-3.5" /> Pagar pela Plataforma
+                                  </button>
+                                ) : (
+                                  <label className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-xs font-medium">
+                                    <Upload className="w-3.5 h-3.5" /> Carregar Comprovativo
+                                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                                      onChange={e => {
+                                        const f = e.target.files && e.target.files[0];
+                                        if (f) carregarComprovativo(p.id, f);
+                                        e.target.value = '';
+                                      }} />
+                                  </label>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                       {(sol.estado === 'aceite' || sol.estado === 'agendado') && (
-                        <button onClick={() => fazerMatricula(sol)} disabled={sending}
+                        <button onClick={() => abrirMatricula(sol)} disabled={sending}
                           className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-medium disabled:opacity-50">
-                          <BookOpen className="w-4 h-4" /> Fazer Matrícula Online
+                          <BookOpen className="w-4 h-4" /> Iniciar Matrícula
                         </button>
                       )}
                     </div>
@@ -740,6 +904,7 @@ const AreaEncarregado = () => {
                   <div>
                     <p className={`font-semibold ${text}`}>{m.aluno_nome}</p>
                     <p className={`text-sm ${subtext}`}>Nº {m.numero_estudante}</p>
+                    {m.numero_processo && <p className={`text-xs ${subtext}`}>Nº de Processo: <span className="font-mono text-primary-500">{m.numero_processo}</span></p>}
                     <p className="text-xs text-primary-500 mt-0.5"><School className="w-3 h-3 inline mr-1" />{m.instituicao_nome}</p>
                     {m.turma_nome && <p className={`text-xs ${subtext}`}>Turma: {m.turma_nome} • {m.ano_letivo}</p>}
                   </div>
@@ -757,6 +922,111 @@ const AreaEncarregado = () => {
           </Link>
         </div>
       </div>
+
+      {/* Modal Iniciar Matrícula */}
+      {matriculaAberta && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className={`${card} border rounded-2xl w-full max-w-2xl my-8`}>
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-navy-700 flex items-center justify-between sticky top-0 bg-white dark:bg-navy-900 rounded-t-2xl">
+              <div>
+                <h2 className={`text-lg font-semibold ${text}`}>Iniciar Matrícula — {matriculaAberta.aluno_nome}</h2>
+                <p className={`text-xs ${subtext}`}>{matriculaAberta.instituicao_nome}{matriculaAberta.turma_nome ? ` • ${matriculaAberta.turma_nome}` : ''}</p>
+              </div>
+              <button onClick={fecharMatricula} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <p className={`text-sm font-semibold ${text} mb-2`}>1. Requisitos de matrícula definidos pela instituição</p>
+                {matriculaRequisitos.length === 0 ? (
+                  <p className={`text-sm ${subtext}`}>A instituição não definiu requisitos adicionais.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {matriculaRequisitos.map(r => {
+                      const checked = reqConfirmados.includes(r.chave);
+                      return (
+                        <label key={r.chave} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer ${checked ? 'border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-navy-700'}`}>
+                          <input type="checkbox" checked={checked}
+                            onChange={e => confirmarRequisito(r.chave, e.target.checked)}
+                            className="w-4 h-4 mt-0.5" />
+                          <div>
+                            <p className={`text-sm font-medium ${text}`}>{r.nome} {r.obrigatorio ? <span className="text-red-500">*</span> : <span className={`text-xs ${subtext}`}>(opcional)</span>}</p>
+                            {r.descricao && <p className={`text-xs ${subtext}`}>{r.descricao}</p>}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className={`text-sm font-semibold ${text} mb-2`}>2. Emolumentos e 1ª mensalidade</p>
+                {transacoesDaSolicitacao(matriculaAberta.id).length === 0 ? (
+                  <div className={`p-4 rounded-xl border ${card} flex flex-col md:flex-row md:items-center gap-3 justify-between`}>
+                    <div>
+                      <p className={`text-sm ${subtext}`}>
+                        {financeira?.emolumento_matricula?.ativo && (parseFloat(financeira.emolumento_matricula.valor) || 0) > 0
+                          ? `Emolumento de matrícula: ${(parseFloat(financeira.emolumento_matricula.valor)).toLocaleString('pt-AO')} Kz`
+                          : 'Sem emolumento de matrícula configurado.'}
+                        {financeira?.primeira_mensalidade && financeira?.mensalidade?.ativo && (parseFloat(financeira.mensalidade.valor) || 0) > 0
+                          ? ` • 1ª mensalidade: ${(parseFloat(financeira.mensalidade.valor)).toLocaleString('pt-AO')} Kz`
+                          : ''}
+                      </p>
+                    </div>
+                    <button onClick={() => criarPagamentoMatricula(matriculaAberta)} disabled={sending || !financeira}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+                      <Wallet className="w-3.5 h-3.5" /> Gerar Referência de Pagamento
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {transacoesDaSolicitacao(matriculaAberta.id).map(p => (
+                      <div key={p.id} className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10">
+                        <div className="flex flex-col md:flex-row md:items-center gap-2 justify-between">
+                          <div className="min-w-0">
+                            <p className={`text-sm font-medium ${text}`}>{p.tipo_taxa_nome || p.tipo_taxa} — {(parseFloat(p.valor) || 0).toLocaleString('pt-AO')} Kz</p>
+                            <p className={`text-xs ${subtext}`}>Ref: {p.referencia} • {p.estado === 'pendente' ? 'A aguardar pagamento' : p.estado === 'pago' ? 'Comprovativo enviado (aguarda confirmação)' : 'Pago'}</p>
+                          </div>
+                          {p.estado === 'pendente' && (
+                            <div className="flex gap-2 flex-shrink-0">
+                              {plataformaAtiva ? (
+                                <button onClick={() => pagarTransacao(p.id)} disabled={sending}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+                                  <CreditCard className="w-3.5 h-3.5" /> Pagar pela Plataforma
+                                </button>
+                              ) : (
+                                <label className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-xs font-medium">
+                                  <Upload className="w-3.5 h-3.5" /> Carregar Comprovativo
+                                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden"
+                                    onChange={e => {
+                                      const f = e.target.files && e.target.files[0];
+                                      if (f) carregarComprovativo(p.id, f);
+                                      e.target.value = '';
+                                    }} />
+                                </label>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-navy-700">
+                <button onClick={fecharMatricula} disabled={sending}
+                  className={`px-4 py-2 rounded-xl border ${input} ${text} text-sm`}>Cancelar</button>
+                <button onClick={() => fazerMatricula(matriculaAberta)} disabled={sending}
+                  className="flex items-center gap-2 px-5 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-medium disabled:opacity-50">
+                  {sending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <BookOpen className="w-4 h-4" /> Concluir Matrícula
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

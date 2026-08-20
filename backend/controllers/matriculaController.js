@@ -58,10 +58,13 @@ const getMatriculas = async (req, res) => {
           _id: 1,
           aluno_id: 1,
           turma_id: 1,
+          encarregado_id: 1,
           ano_letivo: 1,
           estado: 1,
           data_matricula: 1,
           created_at: 1,
+          numero_processo: 1,
+          status_processo: 1,
           aluno_nome: '$aluno.nome_completo',
           numero_estudante: '$aluno.numero_estudante',
           turma_nome: '$turma.nome',
@@ -158,6 +161,8 @@ const getMatriculasEncarregado = async (req, res) => {
         id: { $toString: '$_id' },
         aluno_nome: '$aluno.nome_completo',
         numero_estudante: '$aluno.numero_estudante',
+        numero_processo: '$numero_processo',
+        status_processo: '$status_processo',
         instituicao_nome: '$instituicao.nome',
         turma_nome: { $ifNull: ['$turma.nome', '$curso.nome'] }
       } },
@@ -173,7 +178,8 @@ const getMatriculasEncarregado = async (req, res) => {
 const createMatriculaEncarregado = async (req, res) => {
   try {
     const db = getDB();
-    const { solicitacao_id } = req.body;
+    const { solicitacao_id, requisitos_confirmados } = req.body;
+    const pagamentoController = require('./pagamentoController');
     const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
     const encarregadoId = usuario?.entidade_id;
     if (!encarregadoId) return res.status(400).json({ error: 'Encarregado não encontrado' });
@@ -195,7 +201,67 @@ const createMatriculaEncarregado = async (req, res) => {
     const instituicaoId = solicitacao.instituicao_id;
     if (!instituicaoId) return res.status(400).json({ error: 'Solicitação sem instituição' });
 
+    const turma = solicitacao.turma_id
+      ? await db.collection('turmas').findOne({ _id: new ObjectId(solicitacao.turma_id) })
+      : null;
+
+    const configMatricula = await db.collection('configuracoes_matricula').findOne({ instituicao_id: new ObjectId(instituicaoId) });
+    const nivel = turma?.nivel || '';
+    const ciclo = nivel.includes('7a') || nivel.includes('8a') || nivel.includes('9a') ? 'secundario'
+      : nivel.includes('10a') || nivel.includes('11a') || nivel.includes('12a') ? 'medio'
+      : 'primario';
+    const requisitosPadrao = {
+      primario: [
+        { chave: 'termo_compromisso', nome: 'Termo de Compromisso assinado', obrigatorio: true },
+        { chave: 'grupo_sanguineo', nome: 'Grupo Sanguíneo', obrigatorio: true },
+        { chave: 'declaracao_saude', nome: 'Declaração de Saúde do Aluno', obrigatorio: true },
+        { chave: 'bi_encarregado', nome: 'BI do Encarregado', obrigatorio: true },
+        { chave: 'comprovativo_residencia', nome: 'Comprovativo de Residência', obrigatorio: true },
+        { chave: 'fotos_aluno', nome: '2 Fotos do Aluno', obrigatorio: true }
+      ],
+      secundario: [
+        { chave: 'termo_compromisso', nome: 'Termo de Compromisso assinado', obrigatorio: true },
+        { chave: 'grupo_sanguineo', nome: 'Grupo Sanguíneo', obrigatorio: true },
+        { chave: 'declaracao_saude', nome: 'Declaração de Saúde do Aluno', obrigatorio: true },
+        { chave: 'bi_encarregado', nome: 'BI do Encarregado', obrigatorio: true },
+        { chave: 'certificado_6a', nome: 'Certificado da 6ª Classe', obrigatorio: true },
+        { chave: 'comprovativo_residencia', nome: 'Comprovativo de Residência', obrigatorio: true },
+        { chave: 'fotos_aluno', nome: '2 Fotos do Aluno', obrigatorio: true }
+      ],
+      medio: [
+        { chave: 'termo_compromisso', nome: 'Termo de Compromisso assinado', obrigatorio: true },
+        { chave: 'grupo_sanguineo', nome: 'Grupo Sanguíneo', obrigatorio: true },
+        { chave: 'declaracao_saude', nome: 'Declaração de Saúde do Aluno', obrigatorio: true },
+        { chave: 'bi_aluno', nome: 'BI do Aluno', obrigatorio: true },
+        { chave: 'certificado_9a', nome: 'Certificado da 9ª Classe', obrigatorio: true },
+        { chave: 'comprovativo_residencia', nome: 'Comprovativo de Residência', obrigatorio: true },
+        { chave: 'fotos_aluno', nome: '2 Fotos do Aluno', obrigatorio: true }
+      ]
+    };
+    const requisitosConfig = (configMatricula && configMatricula.estado === 'aprovada')
+      ? (configMatricula.ciclos || []).find((c) => c.ciclo === ciclo)?.requisitos || []
+      : requisitosPadrao[ciclo] || requisitosPadrao.primario;
+
+    const confirmados = new Set(Array.isArray(requisitos_confirmados) ? requisitos_confirmados : []);
+    const emFalta = (requisitosConfig || []).filter((r) => r.obrigatorio && !confirmados.has(r.chave));
+    if (emFalta.length > 0) {
+      return res.status(400).json({
+        error: `Confirme os requisitos de matrícula obrigatórios antes de concluir: ${emFalta.map((r) => r.nome).join(', ')}`
+      });
+    }
+
+    await pagamentoController.garantirTransacoesMatricula(solicitacao);
+    const pendentes = await pagamentoController.verificarPagamentosMatricula(solicitacao);
+    if (pendentes.length > 0) {
+      const lista = pendentes.map((p) => `${p.descricao} (${p.valor.toLocaleString('pt-AO')} Kz)`).join(', ');
+      return res.status(400).json({
+        error: `Efetue o pagamento antes de concluir a matrícula: ${lista}. Aceda à secção de pagamentos do portal.`,
+        pagamentos_pendentes: pendentes
+      });
+    }
+
     const numero_estudante = `A${new Date().getFullYear()}${Math.floor(1000 + Math.random() * 9000)}`;
+    const numero_processo = pagamentoController.gerarNumeroProcesso(db);
 
     let aluno = await db.collection('alunos').findOne({
       nome_completo: solicitacao.aluno_nome,
@@ -224,9 +290,7 @@ const createMatriculaEncarregado = async (req, res) => {
     const turma_id = solicitacao.turma_id ? new ObjectId(solicitacao.turma_id) : null;
     const curso_id = solicitacao.curso_id ? new ObjectId(solicitacao.curso_id) : turma_id;
 
-    let turma = null;
     if (turma_id) {
-      turma = await db.collection('turmas').findOne({ _id: turma_id });
       if (turma && (turma.vagas_ocupadas || 0) >= (turma.vagas || 0)) {
         return res.status(400).json({ error: 'A turma selecionada já não tem vagas disponíveis' });
       }
@@ -251,11 +315,25 @@ const createMatriculaEncarregado = async (req, res) => {
       curso_id,
       turma_id,
       solicitacao_id: solicitacao._id,
+      numero_processo,
       ano_letivo,
       estado: 'ativa',
+      status_processo: 'matriculado',
       data_matricula: new Date(),
       created_at: new Date()
     });
+
+    await db.collection('alunos').updateOne(
+      { _id: aluno._id },
+      { $set: { status_processo: 'matriculado', numero_processo, updated_at: new Date() } }
+    );
+
+    const financeira = await db.collection('configuracoes_financeiras').findOne({ instituicao_id: new ObjectId(instituicaoId) });
+    if (financeira?.mensalidade?.ativo && financeira.mensalidade.valor > 0) {
+      try {
+        await pagamentoController.gerarMensalidadesInterno(matriculaResult.insertedId, financeira);
+      } catch (e) { /* não bloqueia a matrícula */ }
+    }
 
     if (turma) {
       await db.collection('turmas').updateOne(
@@ -302,7 +380,8 @@ const createMatriculaEncarregado = async (req, res) => {
     res.status(201).json({
       message: 'Matrícula realizada com sucesso',
       matricula_id: matriculaResult.insertedId.toString(),
-      numero_estudante: aluno.numero_estudante
+      numero_estudante: aluno.numero_estudante,
+      numero_processo
     });
   } catch (error) {
     console.error('Erro ao criar matrícula do encarregado:', error);

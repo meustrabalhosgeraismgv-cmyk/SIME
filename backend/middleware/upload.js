@@ -57,5 +57,6 @@ upload.uploadVideos = criarUpload('videos', { videos: true, maxSize: 200 * 1024 
 upload.chat = criarUpload('chat', { todosTipos: true, maxSize: 25 * 1024 * 1024 });
 upload.documentos = criarUpload('documentos', { todosTipos: true, maxSize: 10 * 1024 * 1024 });
 upload.formularios = criarUpload('formularios', { todosTipos: true, maxSize: 10 * 1024 * 1024 });
+upload.comprovativos = criarUpload('comprovativos', { todosTipos: true, maxSize: 10 * 1024 * 1024 });
 
 module.exports = upload;

@@ -29,6 +29,7 @@ import {
   Image,
   Calendar,
   Smartphone,
+  Wallet,
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -48,6 +49,7 @@ const Sidebar = () => {
         { icon: Calendar, label: 'Calendário Escolar', path: '/app/gerir-calendario' },
         { icon: CheckCircle, label: 'Aprovar Instituições', path: '/app/aprovacoes' },
         { icon: Users, label: 'Utilizadores', path: '/app/utilizadores' },
+        { icon: Wallet, label: 'Configurações de Pagamento', path: '/app/configuracoes-globais' },
       ]
     },
     {
@@ -98,6 +100,7 @@ const Sidebar = () => {
         { icon: GraduationCap, label: 'Gerir Professores', path: '/app/professores' },
         { icon: ClipboardList, label: 'Matrículas', path: '/app/matriculas' },
         { icon: BookOpen, label: 'Classificações / Pautas', path: '/app/classificacoes' },
+        { icon: Wallet, label: 'Ciclo de Vida do Aluno', path: '/app/ciclo-vida' },
       ]
     },
     {
@@ -135,6 +138,7 @@ const Sidebar = () => {
         { icon: LayoutDashboard, label: 'Área do Encarregado', path: '/app/area-encarregado' },
         { icon: Search, label: 'Pesquisar Escolas', path: '/app/pesquisar-escolas' },
         { icon: ClipboardList, label: 'As Minhas Solicitações', path: '/app/solicitacoes' },
+        { icon: Wallet, label: 'Os Meus Pagamentos', path: '/app/pagamentos' },
       ]
     },
     {

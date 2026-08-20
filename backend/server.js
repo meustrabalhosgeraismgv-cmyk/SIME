@@ -64,6 +64,9 @@ async function start() {
   app.use('/api/comunicados', require('./routes/comunicados'));
   app.use('/api/solicitacoes', require('./routes/solicitacoes'));
   app.use('/api/configuracao-inscricao', require('./routes/configuracao-inscricao'));
+  app.use('/api/configuracao-matricula', require('./routes/configuracao-matricula'));
+  app.use('/api/configuracao-financeira', require('./routes/configuracao-financeira'));
+  app.use('/api/configuracoes-globais', require('./routes/configuracoes-globais'));
   app.use('/api/pagamentos', require('./routes/pagamentos'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api/cursos', require('./routes/cursos'));

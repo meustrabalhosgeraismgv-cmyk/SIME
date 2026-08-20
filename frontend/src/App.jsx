@@ -55,6 +55,9 @@ import Sms from './pages/Sms';
 import RecursosHumanos from './pages/RecursosHumanos';
 import Denuncias from './pages/Denuncias';
 import Classificacoes from './pages/Classificacoes';
+import ConfiguracoesGlobais from './pages/ConfiguracoesGlobais';
+import CicloVida from './pages/CicloVida';
+import Pagamentos from './pages/Pagamentos';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -116,6 +119,9 @@ const AppRoutes = () => {
         <Route path="gerir-vagas" element={<GerirVagas />} />
         <Route path="solicitacoes-gestor" element={<SolicitacoesGestor />} />
         <Route path="requisitos-inscricao" element={<RequisitosInscricao />} />
+        <Route path="ciclo-vida" element={<CicloVida />} />
+        <Route path="pagamentos" element={<Pagamentos />} />
+        <Route path="configuracoes-globais" element={<ConfiguracoesGlobais />} />
         <Route path="comunicados" element={<ComunicadosGestor />} />
         <Route path="noticias-instituicao" element={<NoticiasInstituicao />} />
         <Route path="noticias" element={<GestaoNoticias />} />

@@ -197,11 +197,42 @@ export const requisitoInscricaoService = {
   removerModelo: (instituicaoId) => api.delete(`/configuracao-inscricao/${instituicaoId}/formulario-modelo`),
 };
 
+export const requisitoMatriculaService = {
+  getPublica: (instituicaoId) => api.get(`/configuracao-matricula/${instituicaoId}`),
+  getMinha: (instituicaoId) => api.get(`/configuracao-matricula/${instituicaoId}/me`),
+  gerarComAssistente: (instituicaoId, ciclos) => api.post('/configuracao-matricula/gerar', { instituicao_id: instituicaoId, ciclos_selecionados: ciclos }),
+  salvar: (instituicaoId, data) => api.put(`/configuracao-matricula/${instituicaoId}`, data),
+  aprovar: (instituicaoId) => api.post(`/configuracao-matricula/${instituicaoId}/aprovar`),
+};
+
+export const configuracaoFinanceiraService = {
+  getPublica: (instituicaoId) => api.get(`/configuracao-financeira/${instituicaoId}`),
+  getMinha: (instituicaoId) => api.get(`/configuracao-financeira/${instituicaoId}/me`),
+  salvar: (instituicaoId, data) => api.put(`/configuracao-financeira/${instituicaoId}`, data),
+};
+
+export const configuracaoGlobalService = {
+  get: () => api.get('/configuracoes-globais'),
+  salvar: (data) => api.put('/configuracoes-globais', data),
+};
+
 export const pagamentoService = {
-  getGestor: () => api.get('/pagamentos/gestor'),
+  getGestor: (params) => api.get('/pagamentos/gestor', { params }),
   getEncarregado: () => api.get('/pagamentos/encarregado'),
+  criar: (data) => api.post('/pagamentos', data),
+  uploadComprovativo: (id, file) => {
+    const formData = new FormData();
+    formData.append('id', id);
+    formData.append('ficheiro', file);
+    return api.post('/pagamentos/upload-comprovativo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  pagarPlataforma: (id) => api.post(`/pagamentos/${id}/pagar-plataforma`),
   confirmar: (id) => api.put(`/pagamentos/${id}/confirmar`),
-  cancelar: (id) => api.put(`/pagamentos/${id}/cancelar`),
+  rejeitar: (id, observacoes) => api.put(`/pagamentos/${id}/rejeitar`, { observacoes }),
+  gerarMensalidades: (matricula_id) => api.post('/pagamentos/gerar-mensalidades', { matricula_id }),
+  avisar: (data) => api.post('/pagamentos/avisar', data),
 };
 
 export const calendarService = {

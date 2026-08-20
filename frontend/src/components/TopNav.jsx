@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, School, Users, GraduationCap, BookOpen, ClipboardList,
   Search, Settings, BarChart3, FileText, Newspaper, Bell, CheckCircle,
-  MessageCircle,
+  MessageCircle, Wallet, ListChecks,
 } from 'lucide-react';
 
 const menuConfigs = {
@@ -25,6 +25,7 @@ const menuConfigs = {
     { icon: Users, label: 'Alunos', path: '/app/alunos' },
     { icon: GraduationCap, label: 'Professores', path: '/app/professores' },
     { icon: ClipboardList, label: 'Matrículas', path: '/app/matriculas' },
+    { icon: ListChecks, label: 'Ciclo de Vida', path: '/app/ciclo-vida' },
     { icon: BarChart3, label: 'Vagas', path: '/app/gerir-vagas' },
     { icon: CheckCircle, label: 'Solicitações', path: '/app/solicitacoes-gestor' },
     { icon: FileText, label: 'Requisitos de Inscrição', path: '/app/requisitos-inscricao' },
@@ -37,6 +38,7 @@ const menuConfigs = {
     { icon: LayoutDashboard, label: 'Página Inicial', path: '/app/dashboard' },
     { icon: Search, label: 'Pesquisar', path: '/app/pesquisar-escolas' },
     { icon: ClipboardList, label: 'Solicitações', path: '/app/solicitacoes' },
+    { icon: Wallet, label: 'Pagamentos', path: '/app/pagamentos' },
     { icon: MessageCircle, label: 'Mensagens', path: '/app/chat' },
     { icon: Settings, label: 'Perfil', path: '/app/gerir-perfil' },
   ],

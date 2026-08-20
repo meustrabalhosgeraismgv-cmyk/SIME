@@ -180,11 +180,29 @@ router.post('/', authenticateToken, async (req, res) => {
     const encarregadoId = usuario?.entidade_id;
     if (!encarregadoId) return res.status(400).json({ error: 'Encarregado nǜo encontrado' });
 
+    const avisos = [];
+    let turma = null;
     if (turma_id) {
-      const turma = await db.collection('turmas').findOne({ _id: new ObjectId(turma_id) });
+      turma = await db.collection('turmas').findOne({ _id: new ObjectId(turma_id) });
       if (!turma) return res.status(400).json({ error: 'Turma não encontrada' });
       if ((turma.vagas_ocupadas || 0) >= (turma.vagas || 0)) {
         return res.status(400).json({ error: 'A turma selecionada já não tem vagas disponíveis' });
+      }
+    }
+
+    if (aluno_data_nascimento) {
+      const nascimento = new Date(aluno_data_nascimento);
+      const hoje = new Date();
+      let idade = hoje.getFullYear() - nascimento.getFullYear();
+      const m = hoje.getMonth() - nascimento.getMonth();
+      if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) idade--;
+      const nivel = turma?.nivel || '';
+      const primario = ['1a_classe', '2a_classe', '3a_classe', '4a_classe', '5a_classe', '6a_classe'];
+      if (primario.includes(nivel) && idade < 6) {
+        return res.status(400).json({ error: `Candidatura bloqueada: a idade calculada (${idade} anos) é inferior à mínima legal de 6 anos para o Ensino Primário.` });
+      }
+      if (nivel && !primario.includes(nivel) && idade < 10) {
+        avisos.push(`O aluno tem ${idade} anos. Verifique os critérios de admissão da instituição.`);
       }
     }
 
@@ -226,10 +244,33 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     }
 
+    if (instituicao_id) {
+      const financeira = await db.collection('configuracoes_financeiras').findOne({ instituicao_id: new ObjectId(instituicao_id) });
+      const valorInscricao = financeira?.emolumento_inscricao?.ativo ? (parseFloat(financeira.emolumento_inscricao.valor) || 0) : 0;
+      if (valorInscricao > 0) {
+        const global = await db.collection('configuracoes_globais').findOne({ chave: 'pagamento' });
+        const plataforma = !!global?.pagamento_plataforma_ativado;
+        const referencia = `REF-${now.getFullYear()}-${Date.now().toString(36).toUpperCase()}${Math.floor(1000 + Math.random() * 9000)}`;
+        await db.collection('pagamentos').insertOne({
+          solicitacao_id: result.insertedId,
+          instituicao_id: new ObjectId(instituicao_id),
+          encarregado_id: encarregadoId,
+          tipo_taxa: 'inscricao',
+          descricao: 'Emolumento de Inscrição',
+          valor: valorInscricao,
+          referencia,
+          forma_pagamento: plataforma ? 'plataforma' : 'comprovativo',
+          estado: 'pendente',
+          created_at: now
+        });
+        avisos.push(`Emolumento de inscrição de ${valorInscricao.toLocaleString('pt-AO')} Kz: efetue o pagamento e carregue o comprovativo no portal.`);
+      }
+    }
+
     const solicitacao = toSolicitacao(await db.collection('solicitacoes').findOne({ _id: result.insertedId }));
     emitSolicitacao(req.app.get('io'), 'solicitacao:novo', solicitacao);
 
-    res.status(201).json({ id: result.insertedId, message: 'Solicitação criada' });
+    res.status(201).json({ id: result.insertedId, message: 'Solicitação criada', avisos });
   } catch (error) {
     res.status(500).json({ error: 'Erro' });
   }
@@ -261,7 +302,59 @@ async function atualizarEstado(req, res, estado, extra = {}) {
   }
 }
 
-router.put('/:id/aceitar', authenticateToken, (req, res) => atualizarEstado(req, res, 'aceite'));
+router.put('/:id/aceitar', authenticateToken, async (req, res) => {
+  try {
+    const db = getDB();
+    const id = req.params.id;
+    const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
+    const solicitacao = await db.collection('solicitacoes').findOne({ _id: new ObjectId(id) });
+    if (!solicitacao) return res.status(404).json({ error: 'Solicitação não encontrada' });
+
+    const instituicao = solicitacao.instituicao_id
+      ? await db.collection('instituicoes').findOne({ _id: new ObjectId(solicitacao.instituicao_id) })
+      : null;
+
+    const comunicado = {
+      titulo: 'Vaga Aprovada — Matrícula Disponivel',
+      conteudo: `A sua vaga para "${solicitacao.aluno_nome}" na ${instituicao?.nome || 'instituição'} foi APROVADA. Aceda ao portal, no separador "As Minhas Solicitações", e clique em "Iniciar Matrícula" para preencher os requisitos de matrícula e efetuar o pagamento.`,
+      tipo: 'vaga_aceite',
+      instituicao_id: solicitacao.instituicao_id || null,
+      destinatario_id: solicitacao.encarregado_id || null,
+      publicado: 1,
+      destaque: 0,
+      autor_id: new ObjectId(req.user.id),
+      autor_nome: usuario?.nome || usuario?.username || 'Instituição',
+      created_at: new Date()
+    };
+    const comResult = await db.collection('comunicados').insertOne(comunicado);
+
+    const historico = [
+      ...(solicitacao.historico || []),
+      { estado: 'aceite', data: new Date(), autor: usuario.nome || usuario.username, observacoes: req.body.observacoes || '' }
+    ];
+
+    await db.collection('solicitacoes').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { estado: 'aceite', data_resposta: new Date(), historico, comunicado_id: comResult.insertedId } }
+    );
+
+    const atualizada = toSolicitacao(await db.collection('solicitacoes').findOne({ _id: new ObjectId(id) }));
+    emitSolicitacao(req.app.get('io'), 'solicitacao:update', atualizada);
+
+    const io = req.app.get('io');
+    if (io && solicitacao.encarregado_id) {
+      io.to('user:' + solicitacao.encarregado_id.toString()).emit('comunicado:novo', {
+        comunicado_id: comResult.insertedId.toString(),
+        titulo: comunicado.titulo,
+        tipo: 'vaga_aceite'
+      });
+    }
+
+    res.json({ message: 'Solicitação aceite e notificação automática enviada ao encarregado', solicitacao: atualizada, comunicado_id: comResult.insertedId.toString() });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro' });
+  }
+});
 router.put('/:id/rejeitar', authenticateToken, (req, res) => atualizarEstado(req, res, 'rejeitada', { observacoes: req.body.observacoes || '' }));
 router.put('/:id/agendar', authenticateToken, (req, res) => atualizarEstado(req, res, 'agendado', { observacoes: req.body.observacoes || '' }));
 router.put('/:id/inscrever', authenticateToken, (req, res) => atualizarEstado(req, res, 'inscrito'));

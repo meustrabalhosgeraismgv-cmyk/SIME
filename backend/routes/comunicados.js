@@ -8,10 +8,17 @@ const { oid, matchInstituicaoId } = require('../utils/filters');
 router.get('/', async (req, res) => {
   try {
     const db = getDB();
-    const { instituicao_id } = req.query;
+    const { instituicao_id, destinatario_id } = req.query;
     const filter = { publicado: 1 };
     if (instituicao_id) {
       filter.instituicao_id = matchInstituicaoId(instituicao_id);
+    }
+    if (destinatario_id) {
+      filter.$or = [
+        { destinatario_id: { $exists: false } },
+        { destinatario_id: null },
+        { destinatario_id: matchInstituicaoId(destinatario_id) }
+      ];
     }
 
     const comunicados = await db.collection('comunicados').aggregate([
