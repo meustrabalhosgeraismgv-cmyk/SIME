@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { BarChart3, Edit2, Loader2, Save, GraduationCap, AlertTriangle } from 'lucide-react';
+import { BarChart3, Edit2, Loader2, Save, GraduationCap, AlertTriangle, FileText, ArrowRight } from 'lucide-react';
 import { instituicaoService, turmaService } from '../services/api';
 
 const GerirVagas = () => {
@@ -108,10 +109,18 @@ const GerirVagas = () => {
           <div className="w-12 h-12 bg-primary-500/10 rounded-xl flex items-center justify-center">
             <BarChart3 className="w-6 h-6 text-primary-500" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className={`text-2xl font-bold ${text}`}>Gerir Vagas</h1>
             <p className={`text-sm ${subtext}`}>Vagas reais por turma da instituição — atualizadas automaticamente nas matrículas</p>
           </div>
+          <Link
+            to="/app/requisitos-inscricao"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+          >
+            <FileText className="w-4 h-4" />
+            Requisitos de Inscrição
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
 
         {alertMsg && (

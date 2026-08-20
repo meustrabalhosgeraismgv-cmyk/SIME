@@ -27,6 +27,7 @@ const menuConfigs = {
     { icon: ClipboardList, label: 'Matrículas', path: '/app/matriculas' },
     { icon: BarChart3, label: 'Vagas', path: '/app/gerir-vagas' },
     { icon: CheckCircle, label: 'Solicitações', path: '/app/solicitacoes-gestor' },
+    { icon: FileText, label: 'Requisitos de Inscrição', path: '/app/requisitos-inscricao' },
     { icon: Newspaper, label: 'Notícias', path: '/app/noticias-instituicao' },
     { icon: Bell, label: 'Comunicados', path: '/app/comunicados' },
     { icon: MessageCircle, label: 'Mensagens', path: '/app/chat' },
