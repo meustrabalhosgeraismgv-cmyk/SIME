@@ -187,6 +187,14 @@ export const requisitoInscricaoService = {
   gerarComAssistente: (instituicaoId, ciclos) => api.post('/configuracao-inscricao/gerar', { instituicao_id: instituicaoId, ciclos_selecionados: ciclos }),
   salvar: (instituicaoId, data) => api.put(`/configuracao-inscricao/${instituicaoId}`, data),
   aprovar: (instituicaoId) => api.post(`/configuracao-inscricao/${instituicaoId}/aprovar`),
+  uploadModelo: (instituicaoId, file) => {
+    const formData = new FormData();
+    formData.append('ficheiro', file);
+    return api.post(`/configuracao-inscricao/${instituicaoId}/formulario-modelo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  removerModelo: (instituicaoId) => api.delete(`/configuracao-inscricao/${instituicaoId}/formulario-modelo`),
 };
 
 export const pagamentoService = {

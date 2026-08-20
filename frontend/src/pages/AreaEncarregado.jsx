@@ -5,7 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import {
   Users, ClipboardList, School, GraduationCap, Loader2, Plus,
   CheckCircle, XCircle, Clock, Calendar, RefreshCw, BookOpen,
-  AlertCircle, HeartHandshake
+  AlertCircle, HeartHandshake, Download
 } from 'lucide-react';
 import { solicitacaoService, matriculaService, instituicaoService, turmaService, requisitoInscricaoService, authService, alunoService, classificacaoService } from '../services/api';
 import { connectSocket, getSocket } from '../services/socketClient';
@@ -33,6 +33,8 @@ const AreaEncarregado = () => {
   const [turmas, setTurmas] = useState([]);
   const [requisitos, setRequisitos] = useState([]);
   const [requisitoOrigem, setRequisitoOrigem] = useState('');
+  const [formularioConfig, setFormularioConfig] = useState(null);
+  const [formRespostas, setFormRespostas] = useState({});
   const [docs, setDocs] = useState({});
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -117,6 +119,8 @@ const AreaEncarregado = () => {
   const carregarRequisitos = async (instituicaoId, turma) => {
     setRequisitos([]);
     setDocs({});
+    setFormRespostas({});
+    setFormularioConfig(null);
     if (!instituicaoId) return;
     try {
       const res = await requisitoInscricaoService.getPublica(instituicaoId);
@@ -124,9 +128,11 @@ const AreaEncarregado = () => {
       const nivel = turma?.nivel;
       const ciclo = (config.ciclos || []).find(c => nivel && (c.niveis || []).includes(nivel)) || (config.ciclos || [])[0];
       setRequisitos(ciclo?.requisitos || []);
+      setFormularioConfig(config.formulario || { modo: 'online', modelo_url: null, modelo_nome: null, campos: [] });
       setRequisitoOrigem(config.estado === 'padrao' ? 'padrão do sistema' : config.estado);
     } catch (e) {
       setRequisitos([]);
+      setFormularioConfig(null);
       setRequisitoOrigem('');
     }
   };
@@ -135,6 +141,8 @@ const AreaEncarregado = () => {
     setForm({ ...form, instituicao_id: id, turma_id: '' });
     setRequisitos([]);
     setDocs({});
+    setFormRespostas({});
+    setFormularioConfig(null);
     carregarTurmas(id);
   };
 
@@ -182,10 +190,18 @@ const AreaEncarregado = () => {
     if (!form.instituicao_id) { setAlertMsg({ type: 'error', message: 'Selecione a instituição' }); return; }
     if (!form.turma_id) { setAlertMsg({ type: 'error', message: 'Selecione a turma/classe pretendida' }); return; }
     if (!form.aluno_nome.trim()) { setAlertMsg({ type: 'error', message: 'Indique o nome do aluno' }); return; }
-    const obrigatorios = requisitos.filter(r => r.obrigatorio);
+    const modoFicha = formularioConfig?.modo || 'online';
+    const obrigatorios = requisitos.filter(r => r.obrigatorio && !(r.chave === 'formulario' && modoFicha === 'online'));
     for (const r of obrigatorios) {
       if (!(docs[r.chave] || []).length) {
         setAlertMsg({ type: 'error', message: `É obrigatório anexar: ${r.nome}` });
+        return;
+      }
+    }
+    const camposObrigatorios = (formularioConfig?.campos || []).filter(c => c.obrigatorio && c.label);
+    for (const c of camposObrigatorios) {
+      if (!String(formRespostas[c.chave] || '').trim()) {
+        setAlertMsg({ type: 'error', message: `Preencha o campo obrigatório da ficha: ${c.label}` });
         return;
       }
     }
@@ -194,6 +210,9 @@ const AreaEncarregado = () => {
     setAlertMsg(null);
     try {
       const documentos = await uploadDocumentos();
+      const formulario_respostas = (formularioConfig?.campos || [])
+        .filter(c => c.label && String(formRespostas[c.chave] || '').trim())
+        .map(c => ({ chave: c.chave, label: c.label, valor: formRespostas[c.chave] }));
       await solicitacaoService.create({
         instituicao_id: form.instituicao_id,
         turma_id: form.turma_id || null,
@@ -203,11 +222,14 @@ const AreaEncarregado = () => {
         aluno_bi: form.aluno_bi || null,
         necessidades_especiais: form.necessidades_especiais || '',
         documentos,
+        formulario_respostas,
       });
       setAlertMsg({ type: 'success', message: 'Solicitação de vaga enviada com sucesso! A instituição vai analisar o seu pedido.' });
       setShowForm(false);
       setForm({ instituicao_id: '', turma_id: '', aluno_nome: '', aluno_data_nascimento: '', aluno_sexo: 'M', aluno_bi: '', necessidades_especiais: '' });
       setDocs({});
+      setFormRespostas({});
+      setFormularioConfig(null);
       setRequisitos([]);
       loadAll();
     } catch (err) {
@@ -259,6 +281,8 @@ const AreaEncarregado = () => {
   const totalPendentes = solicitacoes.filter(s => s.estado === 'pendente').length;
   const totalAceites = solicitacoes.filter(s => s.estado === 'aceite' || s.estado === 'agendado').length;
   const escolaSelecionada = escolas.find(e => (e._id || e.id) === form.instituicao_id);
+  const modoFicha = formularioConfig?.modo || 'online';
+  const camposFicha = formularioConfig?.campos || [];
 
   return (
     <div className={`min-h-screen ${bg} p-6`}>
@@ -401,14 +425,19 @@ const AreaEncarregado = () => {
                     <div className="space-y-3">
                       {requisitos.map(r => {
                         const ficheiros = docs[r.chave] || [];
+                        const isFichaOnline = r.chave === 'formulario' && modoFicha === 'online';
                         return (
                           <div key={r.chave} className="flex flex-col md:flex-row md:items-center gap-2 justify-between">
                             <div className="flex-1">
                               <p className={`text-sm font-medium ${text}`}>
-                                {r.nome} {r.obrigatorio ? <span className="text-red-500">*</span> : <span className={`text-xs ${subtext}`}>(opcional)</span>}
+                                {r.nome} {isFichaOnline ? (
+                                  <span className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                    <CheckCircle className="w-3 h-3" /> Preenchida no site
+                                  </span>
+                                ) : r.obrigatorio ? <span className="text-red-500">*</span> : <span className={`text-xs ${subtext}`}>(opcional)</span>}
                               </p>
                               {r.descricao && <p className={`text-xs ${subtext}`}>{r.descricao}</p>}
-                              {ficheiros.length > 0 && (
+                              {!isFichaOnline && ficheiros.length > 0 && (
                                 <div className="mt-1 flex flex-wrap gap-1">
                                   {ficheiros.map((f, i) => (
                                     <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
@@ -418,19 +447,62 @@ const AreaEncarregado = () => {
                                   ))}
                                 </div>
                               )}
+                              {r.chave === 'formulario' && modoFicha === 'modelo' && formularioConfig?.modelo_url && (
+                                <a href={formularioConfig.modelo_url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-primary-500 hover:underline">
+                                  <Download className="w-3.5 h-3.5" /> Descarregar Ficha de Inscrição (modelo da instituição)
+                                </a>
+                              )}
                             </div>
-                            <label className={`cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${card} ${text} hover:bg-primary-50 dark:hover:bg-navy-700`}>
-                              <Plus className="w-3.5 h-3.5" /> {ficheiros.length ? 'Adicionar' : 'Anexar'}
-                              <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
-                                onChange={e => {
-                                  const f = e.target.files && e.target.files[0];
-                                  if (f) onFileSelect(r.chave, f);
-                                  e.target.value = '';
-                                }} />
-                            </label>
+                            {!isFichaOnline && (
+                              <label className={`cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${card} ${text} hover:bg-primary-50 dark:hover:bg-navy-700`}>
+                                <Plus className="w-3.5 h-3.5" /> {ficheiros.length ? 'Adicionar' : 'Anexar'}
+                                <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                                  onChange={e => {
+                                    const f = e.target.files && e.target.files[0];
+                                    if (f) onFileSelect(r.chave, f);
+                                    e.target.value = '';
+                                  }} />
+                              </label>
+                            )}
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+                  {modoFicha === 'online' && camposFicha.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-amber-200 dark:border-amber-800">
+                      <p className={`text-sm font-semibold ${text} mb-1`}>Ficha de Inscrição — preenchimento no site</p>
+                      <p className={`text-xs ${subtext} mb-3`}>A instituição definiu esta ficha no site. Preencha os campos abaixo (não precisa de carregar o formulário).</p>
+                      <div className="space-y-3">
+                        {camposFicha.map(c => {
+                          const val = formRespostas[c.chave] || '';
+                          const set = (v) => setFormRespostas(prev => ({ ...prev, [c.chave]: v }));
+                          return (
+                            <div key={c.chave}>
+                              <label className={`block text-sm font-medium ${subtext} mb-1`}>
+                                {c.label} {c.obrigatorio ? <span className="text-red-500">*</span> : <span className={`text-xs ${subtext}`}>(opcional)</span>}
+                              </label>
+                              {c.tipo === 'textarea' ? (
+                                <textarea value={val} onChange={e => set(e.target.value)} rows={2}
+                                  className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`} />
+                              ) : c.tipo === 'date' ? (
+                                <input type="date" value={val} onChange={e => set(e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`} />
+                              ) : c.tipo === 'select' ? (
+                                <select value={val} onChange={e => set(e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`}>
+                                  <option value="">Selecione...</option>
+                                  {(c.opcoes || []).map((o, oi) => <option key={oi} value={o}>{o}</option>)}
+                                </select>
+                              ) : (
+                                <input type="text" value={val} onChange={e => set(e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-xl border ${input} outline-none`} />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -602,6 +674,11 @@ const AreaEncarregado = () => {
                         {(sol.documentos || []).length > 0 && (
                           <p className={`mt-1 text-xs ${subtext}`}>
                             Documentos anexados: {sol.documentos.length} ({sol.documentos.map(d => d.nome).join(', ')})
+                          </p>
+                        )}
+                        {(sol.formulario_respostas || []).length > 0 && (
+                          <p className={`mt-1 text-xs ${subtext}`}>
+                            Ficha de inscrição preenchida no site: {sol.formulario_respostas.map(f => `${f.label}: ${f.valor}`).join(' • ')}
                           </p>
                         )}
                         {sol.necessidades_especiais && (

@@ -23,6 +23,7 @@ function toSolicitacao(doc) {
     curso_id: doc.curso_id ? doc.curso_id.toString() : null,
     turma_id: doc.turma_id ? doc.turma_id.toString() : null,
     documentos: Array.isArray(doc.documentos) ? doc.documentos : [],
+    formulario_respostas: Array.isArray(doc.formulario_respostas) ? doc.formulario_respostas : [],
   };
 }
 
@@ -173,7 +174,7 @@ router.post('/', authenticateToken, async (req, res) => {
     const {
       instituicao_id, comunicado_id, aluno_nome, aluno_data_nascimento,
       aluno_sexo, curso_id, turma_id, necessidades_especiais, aluno_bi,
-      observacoes, documentos
+      observacoes, documentos, formulario_respostas
     } = req.body;
     const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
     const encarregadoId = usuario?.entidade_id;
@@ -201,6 +202,7 @@ router.post('/', authenticateToken, async (req, res) => {
       necessidades_especiais: necessidades_especiais || '',
       observacoes: observacoes || '',
       documentos: Array.isArray(documentos) ? documentos : [],
+      formulario_respostas: Array.isArray(formulario_respostas) ? formulario_respostas : [],
       estado: 'pendente',
       historico: [{ estado: 'pendente', data: now, autor: usuario.nome || usuario.username }],
       created_at: now

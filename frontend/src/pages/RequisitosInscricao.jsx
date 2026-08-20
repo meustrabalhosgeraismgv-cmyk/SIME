@@ -106,12 +106,13 @@ const RequisitosInscricao = () => {
     setSaving(true);
     setAlertMsg(null);
     try {
+      const payload = { ciclos: config.ciclos, estado: aprovar ? 'aprovada' : 'rascunho', formulario: config.formulario || { modo: 'online', modelo_url: null, modelo_nome: null, campos: [] } };
       if (aprovar) {
-        await requisitoInscricaoService.salvar(instituicaoId, { ciclos: config.ciclos, estado: 'aprovada' });
+        await requisitoInscricaoService.salvar(instituicaoId, payload);
         const res = await requisitoInscricaoService.aprovar(instituicaoId);
         setAlertMsg({ type: 'success', message: res.data?.message || 'Configuração aprovada e comunicado publicado em todo o sistema' });
       } else {
-        await requisitoInscricaoService.salvar(instituicaoId, { ciclos: config.ciclos, estado: 'rascunho' });
+        await requisitoInscricaoService.salvar(instituicaoId, payload);
         setAlertMsg({ type: 'success', message: 'Configuração guardada como rascunho. Aprove para publicar o comunicado.' });
       }
       loadConfig(instituicaoId);
@@ -121,6 +122,63 @@ const RequisitosInscricao = () => {
       setSaving(false);
     }
   };
+
+  const atualizarFormulario = (campo, valor) => {
+    setConfig(prev => {
+      if (!prev) return prev;
+      const formulario = { ...(prev.formulario || { modo: 'online', modelo_url: null, modelo_nome: null, campos: [] }), [campo]: valor };
+      return { ...prev, formulario };
+    });
+  };
+
+  const adicionarCampo = () => {
+    const formulario = config?.formulario || { modo: 'online', modelo_url: null, modelo_nome: null, campos: [] };
+    atualizarFormulario('campos', [...(formulario.campos || []), { chave: `campo_${Date.now()}`, label: '', tipo: 'text', opcoes: [], obrigatorio: true }]);
+  };
+
+  const atualizarCampo = (idx, campo, valor) => {
+    const formulario = config?.formulario || { modo: 'online', modelo_url: null, modelo_nome: null, campos: [] };
+    const campos = [...(formulario.campos || [])];
+    campos[idx] = { ...campos[idx], [campo]: valor };
+    atualizarFormulario('campos', campos);
+  };
+
+  const removerCampo = (idx) => {
+    const formulario = config?.formulario || { modo: 'online', modelo_url: null, modelo_nome: null, campos: [] };
+    atualizarFormulario('campos', (formulario.campos || []).filter((_, i) => i !== idx));
+  };
+
+  const uploadModelo = async (file) => {
+    if (!instituicaoId || !file) return;
+    setSaving(true);
+    setAlertMsg(null);
+    try {
+      await requisitoInscricaoService.uploadModelo(instituicaoId, file);
+      setAlertMsg({ type: 'success', message: 'Modelo da ficha carregado. Os encarregados farão download e devolverão preenchido.' });
+      loadConfig(instituicaoId);
+    } catch (e) {
+      setAlertMsg({ type: 'error', message: e.response?.data?.error || 'Erro ao carregar o modelo' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removerModelo = async () => {
+    if (!instituicaoId) return;
+    setSaving(true);
+    setAlertMsg(null);
+    try {
+      await requisitoInscricaoService.removerModelo(instituicaoId);
+      setAlertMsg({ type: 'success', message: 'Modelo removido. A ficha será preenchida no site.' });
+      loadConfig(instituicaoId);
+    } catch (e) {
+      setAlertMsg({ type: 'error', message: e.response?.data?.error || 'Erro ao remover o modelo' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formulario = config?.formulario || { modo: 'online', modelo_url: null, modelo_nome: null, campos: [] };
 
   const bg = theme === 'dark' ? 'bg-navy-900' : 'bg-gray-50';
   const card = theme === 'dark' ? 'bg-navy-800 border-navy-700' : 'bg-white border-gray-200';
@@ -209,6 +267,137 @@ const RequisitosInscricao = () => {
             )}
           </div>
         )}
+
+        <div className={`${card} border rounded-2xl overflow-hidden`}>
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-navy-700">
+            <h2 className={`text-lg font-semibold ${text}`}>Ficha de Inscrição Interna</h2>
+            <p className={`text-xs ${subtext}`}>Como os encarregados entregam a ficha de inscrição: modelo próprio da instituição (download + devolução preenchida) ou preenchimento direto no site.</p>
+          </div>
+          <div className="p-6 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button onClick={() => atualizarFormulario('modo', 'modelo')}
+                className={`p-4 rounded-xl border text-left ${formulario.modo === 'modelo' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : card}`}>
+                <p className={`text-sm font-semibold ${text}`}>Modelo próprio da instituição</p>
+                <p className={`text-xs ${subtext} mt-1`}>A instituição carrega a ficha; o encarregado faz o download, preenche e devolve o documento preenchido.</p>
+              </button>
+              <button onClick={() => atualizarFormulario('modo', 'online')}
+                className={`p-4 rounded-xl border text-left ${formulario.modo === 'online' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : card}`}>
+                <p className={`text-sm font-semibold ${text}`}>Definir no site (preenchimento online)</p>
+                <p className={`text-xs ${subtext} mt-1`}>A ficha é preenchida no site pelo encarregado — não é necessário carregar novamente o formulário.</p>
+              </button>
+            </div>
+
+            {formulario.modo === 'modelo' && (
+              <div className={`p-4 rounded-xl border ${card}`}>
+                <p className={`text-sm font-medium ${text} mb-2`}>Modelo da ficha</p>
+                {formulario.modelo_url ? (
+                  <div className="flex flex-col md:flex-row md:items-center gap-2 justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-primary-500 flex-shrink-0" />
+                      <a href={formulario.modelo_url} target="_blank" rel="noopener noreferrer"
+                        className={`text-sm ${text} truncate hover:underline`}>
+                        {formulario.modelo_nome || 'Ver modelo carregado'}
+                      </a>
+                    </div>
+                    <div className="flex gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 hover:bg-primary-600 text-white">
+                        <Plus className="w-3.5 h-3.5" /> Substituir
+                        <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden"
+                          onChange={e => {
+                            const f = e.target.files && e.target.files[0];
+                            if (f) uploadModelo(f);
+                            e.target.value = '';
+                          }} />
+                      </label>
+                      <button onClick={removerModelo} disabled={saving}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500 hover:bg-red-600 text-white disabled:opacity-50">
+                        <Trash2 className="w-3.5 h-3.5" /> Remover
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className={`text-xs ${subtext}`}>Nenhum modelo carregado. Carregue a ficha de inscrição da instituição.</p>
+                    <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 hover:bg-primary-600 text-white">
+                      <Plus className="w-3.5 h-3.5" /> Carregar Ficha
+                      <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden"
+                        onChange={e => {
+                          const f = e.target.files && e.target.files[0];
+                          if (f) uploadModelo(f);
+                          e.target.value = '';
+                        }} />
+                    </label>
+                  </div>
+                )}
+                {formulario.modelo_url && (
+                  <p className={`text-xs ${subtext} mt-2`}>Ao aprovar, o encarregado verá o botão "Descarregar Ficha" e terá de anexar a ficha preenchida na solicitação de vaga.</p>
+                )}
+              </div>
+            )}
+
+            {formulario.modo === 'online' && (
+              <div className={`p-4 rounded-xl border ${card}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className={`text-sm font-medium ${text}`}>Campos da ficha preenchida no site</p>
+                  <button onClick={adicionarCampo}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-xs font-medium">
+                    <Plus className="w-3.5 h-3.5" /> Adicionar Campo
+                  </button>
+                </div>
+                {(formulario.campos || []).length === 0 && (
+                  <p className={`text-xs ${subtext}`}>Sem campos definidos. A ficha é considerada preenchida no site sem campos adicionais. Adicione campos para recolher mais informações.</p>
+                )}
+                <div className="space-y-3">
+                  {(formulario.campos || []).map((campo, idx) => (
+                    <div key={campo.chave || idx} className={`p-3 rounded-xl border ${card} space-y-2`}>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div className="md:col-span-1">
+                          <label className={`block text-xs font-medium ${subtext} mb-1`}>Pergunta *</label>
+                          <input type="text" value={campo.label}
+                            onChange={e => atualizarCampo(idx, 'label', e.target.value)}
+                            className={`w-full px-3 py-2 rounded-lg border ${input} outline-none text-sm`}
+                            placeholder="Ex: Nome do pai / encarregado" required />
+                        </div>
+                        <div>
+                          <label className={`block text-xs font-medium ${subtext} mb-1`}>Tipo</label>
+                          <select value={campo.tipo}
+                            onChange={e => atualizarCampo(idx, 'tipo', e.target.value)}
+                            className={`w-full px-3 py-2 rounded-lg border ${input} outline-none text-sm`}>
+                            <option value="text">Texto</option>
+                            <option value="textarea">Texto longo</option>
+                            <option value="date">Data</option>
+                            <option value="select">Lista de opções</option>
+                          </select>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <label className={`flex items-center gap-2 text-xs ${text} pb-2`}>
+                            <input type="checkbox" checked={!!campo.obrigatorio}
+                              onChange={e => atualizarCampo(idx, 'obrigatorio', e.target.checked)}
+                              className="w-4 h-4" />
+                            Obrigatório
+                          </label>
+                          <button onClick={() => removerCampo(idx)}
+                            className="ml-auto flex items-center gap-1 text-xs text-red-500 hover:text-red-700 pb-2">
+                            <Trash2 className="w-3.5 h-3.5" /> Remover
+                          </button>
+                        </div>
+                      </div>
+                      {campo.tipo === 'select' && (
+                        <div>
+                          <label className={`block text-xs font-medium ${subtext} mb-1`}>Opções (uma por linha)</label>
+                          <textarea value={(campo.opcoes || []).join('\n')}
+                            onChange={e => atualizarCampo(idx, 'opcoes', e.target.value.split('\n').filter(o => o.trim()))}
+                            className={`w-full px-3 py-2 rounded-lg border ${input} outline-none text-sm`}
+                            rows={2} placeholder={'Opção 1\nOpção 2'} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {(!config || !config.ciclos || config.ciclos.length === 0) && (
           <div className={`${card} border rounded-2xl p-12 text-center`}>

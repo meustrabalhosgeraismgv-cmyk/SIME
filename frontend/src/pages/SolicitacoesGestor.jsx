@@ -133,6 +133,18 @@ const SolicitacoesGestor = () => {
                       ))}
                     </div>
                   )}
+                  {(s.formulario_respostas || []).length > 0 && (
+                    <div className="mt-2">
+                      <p className={`text-xs font-medium ${subtext} mb-1`}>Ficha de inscrição (preenchida no site):</p>
+                      <div className="flex flex-wrap gap-1">
+                        {s.formulario_respostas.map((f, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                            {f.label}: {f.valor}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {s.comunicado_titulo && (
                     <p className="text-xs text-primary-500 mt-1">Comunicado: {s.comunicado_titulo}</p>
                   )}

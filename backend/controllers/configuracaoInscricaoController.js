@@ -42,6 +42,10 @@ function gerarRequisitos(ciclo) {
   return requisitosPadrao[ciclo] || requisitosPadrao.primario;
 }
 
+function formularioPadrao() {
+  return { modo: 'online', modelo_url: null, modelo_nome: null, campos: [] };
+}
+
 async function getConfigDoc(db, instituicaoId) {
   return db.collection('configuracoes_inscricao').findOne({ instituicao_id: new ObjectId(instituicaoId) });
 }
@@ -77,6 +81,7 @@ exports.getPublica = async (req, res) => {
         id: null,
         instituicao_id: String(instituicao._id),
         ciclos: ciclosResumo,
+        formulario: formularioPadrao(),
         estado: 'padrao',
         origem: 'padrao'
       }
@@ -100,7 +105,7 @@ exports.getMinha = async (req, res) => {
         niveis: ciclos[chave].niveis,
         requisitos: gerarRequisitos(chave)
       }));
-      return res.json({ data: { id: null, instituicao_id: String(instituicaoId), ciclos: ciclosResumo, estado: 'padrao' } });
+      return res.json({ data: { id: null, instituicao_id: String(instituicaoId), ciclos: ciclosResumo, formulario: formularioPadrao(), estado: 'padrao' } });
     }
     res.json({ data: toId(config) });
   } catch (error) {
@@ -147,15 +152,25 @@ exports.salvar = async (req, res) => {
     const { instituicaoId } = req.params;
     if (!ObjectId.isValid(instituicaoId)) return res.status(400).json({ error: 'Instituição inválida' });
 
-    const { ciclos, estado } = req.body;
+    const { ciclos, estado, formulario } = req.body;
     if (!Array.isArray(ciclos) || ciclos.length === 0) {
       return res.status(400).json({ error: 'É necessário definir pelo menos um ciclo' });
     }
+
+    const formularioSalvo = formulario && typeof formulario === 'object'
+      ? {
+          modo: formulario.modo === 'modelo' ? 'modelo' : 'online',
+          modelo_url: formulario.modelo_url || null,
+          modelo_nome: formulario.modelo_nome || null,
+          campos: Array.isArray(formulario.campos) ? formulario.campos : []
+        }
+      : formularioPadrao();
 
     const now = new Date();
     const update = {
       $set: {
         ciclos,
+        formulario: formularioSalvo,
         estado: estado === 'aprovada' ? 'aprovada' : 'rascunho',
         atualizado_por: new ObjectId(req.user.id),
         updated_at: now
@@ -240,3 +255,70 @@ function matchId(id) {
   if (ObjectId.isValid(id)) return new ObjectId(id);
   return id;
 }
+
+exports.uploadModelo = async (req, res) => {
+  try {
+    const db = getDB();
+    const { instituicaoId } = req.params;
+    if (!ObjectId.isValid(instituicaoId)) return res.status(400).json({ error: 'Instituição inválida' });
+    if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado' });
+
+    const url = `/uploads/formularios/${req.file.filename}`;
+    const existing = await getConfigDoc(db, instituicaoId);
+    const modo = existing?.formulario?.modo === 'online' && (existing.formulario.campos || []).length > 0
+      ? 'online'
+      : 'modelo';
+
+    await db.collection('configuracoes_inscricao').updateOne(
+      { instituicao_id: new ObjectId(instituicaoId) },
+      {
+        $set: {
+          'formulario.modo': modo,
+          'formulario.modelo_url': url,
+          'formulario.modelo_nome': req.file.originalname,
+          updated_at: new Date()
+        },
+        $setOnInsert: {
+          created_at: new Date(),
+          instituicao_id: new ObjectId(instituicaoId),
+          estado: 'rascunho',
+          ciclos: []
+        }
+      },
+      { upsert: true }
+    );
+
+    const saved = await getConfigDoc(db, instituicaoId);
+    res.json({
+      data: toId(saved),
+      message: 'Modelo da ficha carregado. Os encarregados farão o download e devolverão preenchido.'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao carregar modelo da ficha' });
+  }
+};
+
+exports.removerModelo = async (req, res) => {
+  try {
+    const db = getDB();
+    const { instituicaoId } = req.params;
+    if (!ObjectId.isValid(instituicaoId)) return res.status(400).json({ error: 'Instituição inválida' });
+
+    await db.collection('configuracoes_inscricao').updateOne(
+      { instituicao_id: new ObjectId(instituicaoId) },
+      {
+        $set: {
+          'formulario.modelo_url': null,
+          'formulario.modelo_nome': null,
+          'formulario.modo': 'online',
+          updated_at: new Date()
+        }
+      }
+    );
+
+    const saved = await getConfigDoc(db, instituicaoId);
+    res.json({ data: toId(saved), message: 'Modelo removido. A ficha será preenchida no site.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao remover modelo da ficha' });
+  }
+};
