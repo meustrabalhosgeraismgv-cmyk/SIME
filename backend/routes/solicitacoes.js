@@ -351,12 +351,18 @@ router.put('/:id/aceitar', authenticateToken, async (req, res) => {
     emitSolicitacao(req.app.get('io'), 'solicitacao:update', atualizada);
 
     const io = req.app.get('io');
-    if (io && solicitacao.encarregado_id) {
-      io.to('entidade:' + solicitacao.encarregado_id.toString()).emit('comunicado:novo', {
+    if (io) {
+      const comunicadoPayload = {
         comunicado_id: comResult.insertedId.toString(),
         titulo: comunicado.titulo,
-        tipo: 'vaga_aceite'
-      });
+        tipo: 'vaga_aceite',
+        encarregado_id: solicitacao.encarregado_id ? solicitacao.encarregado_id.toString() : null,
+        instituicao_id: solicitacao.instituicao_id ? solicitacao.instituicao_id.toString() : null,
+      };
+      io.emit('comunicado:novo', comunicadoPayload);
+      if (solicitacao.encarregado_id) {
+        io.to('entidade:' + solicitacao.encarregado_id.toString()).emit('comunicado:novo', comunicadoPayload);
+      }
     }
 
     res.json({ message: 'Solicitação aceite e notificação automática enviada ao encarregado', solicitacao: atualizada, comunicado_id: comResult.insertedId.toString() });
