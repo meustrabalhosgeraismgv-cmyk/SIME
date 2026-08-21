@@ -27,6 +27,13 @@ async function start() {
     } catch (err) {
       console.error('Seed error:', err.message);
     }
+    try {
+      const { addSchoolsWithVideos } = require('./add-schools-migration');
+      const added = await addSchoolsWithVideos();
+      if (added > 0) console.log(`Migração: ${added} escolas com vídeos adicionadas/atualizadas`);
+    } catch (err) {
+      console.error('Migration error:', err.message);
+    }
   } else {
     console.warn('Sem MongoDB. Servidor inicia sem base de dados.');
   }
