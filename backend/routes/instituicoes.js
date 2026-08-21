@@ -47,7 +47,7 @@ router.post('/:id/imagem', authenticateToken, authorizeRole('admin', 'instituica
     }
 
     const db = getDB();
-    const imagemUrl = `/uploads/instituicoes/${req.file.filename}`;
+    const imagemUrl = req.file.path;
     await db.collection('instituicoes').updateOne(
       { _id: new ObjectId(req.params.id) },
       { $set: { imagem_url: imagemUrl, updated_at: new Date() } }
@@ -68,7 +68,7 @@ router.post('/:id/logotipo', authenticateToken, authorizeRole('admin', 'institui
     }
 
     const db = getDB();
-    const logotipoUrl = `/uploads/instituicoes/${req.file.filename}`;
+    const logotipoUrl = req.file.path;
     await db.collection('instituicoes').updateOne(
       { _id: new ObjectId(req.params.id) },
       { $set: { logotipo_url: logotipoUrl, updated_at: new Date() } }

@@ -263,7 +263,7 @@ exports.uploadModelo = async (req, res) => {
     if (!ObjectId.isValid(instituicaoId)) return res.status(400).json({ error: 'Instituição inválida' });
     if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado' });
 
-    const url = `/uploads/formularios/${req.file.filename}`;
+    const url = req.file.path;
     const existing = await getConfigDoc(db, instituicaoId);
     const modo = existing?.formulario?.modo === 'online' && (existing.formulario.campos || []).length > 0
       ? 'online'

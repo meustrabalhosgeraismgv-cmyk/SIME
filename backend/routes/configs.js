@@ -58,7 +58,7 @@ router.put('/:chave', authenticateToken, authorizeRole('admin'), upload.uploadIn
     };
 
     if (req.file) {
-      novo.imagem = `/uploads/instituicoes/${req.file.filename}`;
+      novo.imagem = req.file.path;
     } else if (atual.imagem) {
       novo.imagem = atual.imagem;
     }

@@ -160,7 +160,7 @@ const uploadComprovativo = async (req, res) => {
     const pagamento = await db.collection('pagamentos').findOne({ _id: new ObjectId(id), encarregado_id: encarregadoId });
     if (!pagamento) return res.status(404).json({ error: 'Pagamento não encontrado' });
 
-    const url = `/uploads/comprovativos/${req.file.filename}`;
+    const url = req.file.path;
     await db.collection('pagamentos').updateOne(
       { _id: new ObjectId(id) },
       { $set: { comprovativo_url: url, comprovativo_nome: req.file.originalname, estado: 'pago', data_comprovativo: new Date() } }

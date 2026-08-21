@@ -255,7 +255,7 @@ router.post('/:id/imagem', authenticateToken, upload.uploadNoticias.single('imag
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
     const db = getDB();
-    const imagemUrl = `/uploads/noticias/${req.file.filename}`;
+    const imagemUrl = req.file.path;
     await db.collection('noticias').updateOne(
       { _id: new ObjectId(req.params.id) },
       { $set: { imagem_url: imagemUrl, updated_at: new Date() } }
@@ -275,7 +275,7 @@ router.post('/:id/video', authenticateToken, upload.uploadVideos.single('video')
     if (!noticia) return res.status(404).json({ error: 'Notícia não encontrada' });
 
     const video = {
-      url: `/uploads/videos/${req.file.filename}`,
+      url: req.file.path,
       titulo: req.body.titulo || '',
       plataforma: 'upload'
     };

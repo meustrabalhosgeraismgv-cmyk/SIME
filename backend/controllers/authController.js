@@ -165,7 +165,7 @@ const register = async (req, res) => {
 const uploadFoto = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado' });
-    const fotoPath = `/uploads/fotos/${req.file.filename}`;
+    const fotoPath = req.file.path;
     const db = getDB();
     await db.collection('usuarios').updateOne({ _id: new ObjectId(req.user.id) }, { $set: { foto: fotoPath } });
     res.json({ foto: fotoPath, message: 'Foto atualizada com sucesso' });

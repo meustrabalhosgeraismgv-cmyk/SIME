@@ -384,7 +384,7 @@ router.put('/:id/retomar', authenticateToken, (req, res) => atualizarEstado(req,
 router.post('/upload-documento', authenticateToken, upload.documentos.single('ficheiro'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum ficheiro enviado' });
-    const url = `/uploads/documentos/${req.file.filename}`;
+    const url = req.file.path;
     res.status(201).json({ url, message: 'Documento carregado' });
   } catch (error) {
     res.status(400).json({ error: error.message || 'Erro ao carregar documento' });

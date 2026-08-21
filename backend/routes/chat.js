@@ -371,7 +371,7 @@ router.post('/upload', authenticateToken, upload.chat.single('ficheiro'), async 
       return res.status(400).json({ error: 'Nenhum ficheiro enviado' });
     }
     res.status(201).json({
-      url: `/uploads/chat/${req.file.filename}`,
+      url: req.file.path,
       nome: req.file.originalname,
       tipo: req.file.mimetype,
       tamanho: req.file.size
