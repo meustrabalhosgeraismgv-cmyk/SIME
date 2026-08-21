@@ -2,7 +2,7 @@ import { io } from 'socket.io-client';
 
 let socket = null;
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost'
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '') || (window.location.hostname === 'localhost'
   ? `http://${window.location.hostname}:3001`
   : window.location.origin);
 
