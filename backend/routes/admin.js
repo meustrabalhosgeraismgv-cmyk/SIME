@@ -256,4 +256,15 @@ router.get('/stats', authenticateToken, authorizeRole('admin'), async (req, res)
   }
 });
 
+router.post('/migrate-schools', authenticateToken, authorizeRole('admin'), async (req, res) => {
+  try {
+    const { addSchoolsWithVideos } = require('../add-schools-migration');
+    const added = await addSchoolsWithVideos();
+    res.json({ message: `Migração concluída: ${added} escolas adicionadas/atualizadas` });
+  } catch (error) {
+    console.error('Erro na migração:', error);
+    res.status(500).json({ error: 'Erro ao executar migração' });
+  }
+});
+
 module.exports = router;
