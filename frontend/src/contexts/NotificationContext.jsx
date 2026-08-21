@@ -105,14 +105,14 @@ export const NotificationProvider = ({ children }) => {
     };
 
     const onComunicado = (p) => {
-      if (user.perfil !== 'encarregado') return;
+      if (!relevantToUser(user, p)) return;
       const msg = p?.titulo || 'Novo comunicado recebido.';
       addNotification({ title: 'Comunicado', message: msg, type: 'info' });
       showToast({ message: msg, type: 'info' });
     };
 
     const onAviso = (p) => {
-      if (user.perfil !== 'encarregado') return;
+      if (!relevantToUser(user, p)) return;
       const msg = p?.titulo || 'Novo aviso recebido.';
       addNotification({ title: 'Aviso', message: msg, type: 'aviso' });
       showToast({ message: msg, type: 'warning' });
