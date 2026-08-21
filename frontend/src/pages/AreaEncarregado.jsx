@@ -8,7 +8,7 @@ import {
   AlertCircle, HeartHandshake, Download, Wallet, Upload, CreditCard, Bell, FileText
 } from 'lucide-react';
 import { solicitacaoService, matriculaService, instituicaoService, turmaService, requisitoInscricaoService, requisitoMatriculaService, configuracaoFinanceiraService, configuracaoGlobalService, pagamentoService, comunicadoService, authService, alunoService, classificacaoService } from '../services/api';
-import { connectSocket, getSocket } from '../services/socketClient';
+import { connectSocket } from '../services/socketClient';
 
 const ESTADO_CONFIG = {
   pendente: { label: 'Pendente', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
@@ -116,7 +116,6 @@ const AreaEncarregado = () => {
     socket?.on('solicitacao:update', onUpdate);
     return () => {
       socket?.off('solicitacao:update', onUpdate);
-      if (getSocket()) getSocket().disconnect();
     };
   }, [user]);
 

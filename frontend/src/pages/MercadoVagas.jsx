@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import Loading from '../components/Loading';
 import { solicitacaoService } from '../services/api';
-import { connectSocket, getSocket } from '../services/socketClient';
+import { connectSocket } from '../services/socketClient';
 
 const ESTADOS = [
   { key: 'pendente', label: 'Em Análise', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', chip: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400', pulse: 'ring-amber-400' },
@@ -68,7 +68,6 @@ const MercadoVagas = () => {
       socket?.off('solicitacao:novo', onNovo);
       socket?.off('solicitacao:update', onUpdate);
       socket?.off('matricula:novo', onMatricula);
-      if (getSocket()) getSocket().disconnect();
     };
   }, []);
 

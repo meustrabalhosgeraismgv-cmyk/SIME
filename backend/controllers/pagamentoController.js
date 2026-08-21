@@ -1,6 +1,7 @@
 const { ObjectId } = require('mongodb');
 const { getDB } = require('../config/mongodb');
 const { matchId } = require('../utils/filters');
+const { getEncarregadoId } = require('../utils/encarregadoUtil');
 const configGlobal = require('./configuracaoGlobalController');
 const configFinanceira = require('./configuracaoFinanceiraController');
 
@@ -23,12 +24,6 @@ function gerarReferencia() {
 function gerarNumeroProcesso(db) {
   const ano = new Date().getFullYear();
   return `PROC-${ano}-${Math.floor(100000 + Math.random() * 900000)}`;
-}
-
-async function getEncarregadoId(req) {
-  const db = getDB();
-  const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
-  return usuario?.entidade_id || null;
 }
 
 function toPagamento(doc) {
@@ -219,7 +214,7 @@ const confirmar = async (req, res) => {
 
     const io = req.app.get('io');
     if (io && pagamento.encarregado_id) {
-      io.to('user:' + pagamento.encarregado_id.toString()).emit('pagamento:confirmado', toPagamento(pagamento));
+      io.to('entidade:' + pagamento.encarregado_id.toString()).emit('pagamento:confirmado', toPagamento(pagamento));
     }
 
     res.json({ message: 'Pagamento confirmado', recibo_numero: recibo });
@@ -362,7 +357,7 @@ const avisar = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      io.to('user:' + encarregado_id.toString()).emit('aviso:novo', { comunicado_id: comResult.insertedId.toString(), titulo });
+      io.to('entidade:' + encarregado_id.toString()).emit('aviso:novo', { comunicado_id: comResult.insertedId.toString(), titulo });
     }
 
     res.status(201).json({

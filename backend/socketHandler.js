@@ -80,6 +80,22 @@ function setupSocket(io) {
     }
 
     socket.join('user:' + userId);
+
+    if (db) {
+      try {
+        const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(userId) });
+        if (usuario?.entidade_id) {
+          const eid = String(usuario.entidade_id);
+          socket.join('entidade:' + eid);
+          if (usuario.entidade_tipo === 'instituicao') {
+            socket.join('instituicao:' + eid);
+          }
+        }
+      } catch (err) {
+        console.error('[Socket] Erro ao juntar sala da entidade:', err.message);
+      }
+    }
+
     io.emit('online-users', Array.from(connectedUsers.keys()));
 
     socket.on('join-conversa', async (conversaId) => {

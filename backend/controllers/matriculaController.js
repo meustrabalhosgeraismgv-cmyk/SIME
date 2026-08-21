@@ -1,6 +1,7 @@
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
 const { matchId } = require('../utils/filters');
+const { resolverEncarregado } = require('../utils/encarregadoUtil');
 
 const getMatriculas = async (req, res) => {
   try {
@@ -143,7 +144,7 @@ const getMatriculasEncarregado = async (req, res) => {
   try {
     const db = getDB();
     const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
-    const encarregadoId = usuario?.entidade_id;
+    const encarregadoId = await resolverEncarregado(usuario);
     if (!encarregadoId) return res.status(400).json({ error: 'Encarregado não encontrado' });
 
     const matriculas = await db.collection('matriculas').aggregate([
@@ -181,7 +182,7 @@ const createMatriculaEncarregado = async (req, res) => {
     const { solicitacao_id, requisitos_confirmados } = req.body;
     const pagamentoController = require('./pagamentoController');
     const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
-    const encarregadoId = usuario?.entidade_id;
+    const encarregadoId = await resolverEncarregado(usuario);
     if (!encarregadoId) return res.status(400).json({ error: 'Encarregado não encontrado' });
 
     const solicitacao = await db.collection('solicitacoes').findOne({
@@ -374,7 +375,7 @@ const createMatriculaEncarregado = async (req, res) => {
       };
       io.emit('solicitacao:update', payload);
       io.emit('matricula:novo', { id: matriculaResult.insertedId.toString(), aluno_nome: aluno.nome_completo, instituicao_id: instituicaoId.toString() });
-      io.to('user:' + encarregadoId.toString()).emit('solicitacao:update', payload);
+      io.to('entidade:' + encarregadoId.toString()).emit('solicitacao:update', payload);
     }
 
     res.status(201).json({

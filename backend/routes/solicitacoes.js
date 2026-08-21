@@ -3,13 +3,17 @@ const router = express.Router();
 const { ObjectId } = require('mongodb');
 const { getDB } = require('../config/mongodb');
 const { authenticateToken } = require('../middleware/auth');
+const { resolverEncarregado } = require('../utils/encarregadoUtil');
 const upload = require('../middleware/upload');
 
 function emitSolicitacao(io, evento, solicitacao) {
   if (!io) return;
   io.emit(evento, solicitacao);
   if (solicitacao.encarregado_id) {
-    io.to('user:' + solicitacao.encarregado_id.toString()).emit(evento, solicitacao);
+    io.to('entidade:' + solicitacao.encarregado_id.toString()).emit(evento, solicitacao);
+  }
+  if (solicitacao.instituicao_id) {
+    io.to('instituicao:' + solicitacao.instituicao_id.toString()).emit(evento, solicitacao);
   }
 }
 
@@ -142,7 +146,7 @@ router.get('/encarregado', authenticateToken, async (req, res) => {
   try {
     const db = getDB();
     const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
-    const encarregadoId = usuario?.entidade_id;
+    const encarregadoId = await resolverEncarregado(usuario);
 
     const solicitacoes = await db.collection('solicitacoes').aggregate([
       { $match: { encarregado_id: encarregadoId } },
@@ -177,8 +181,8 @@ router.post('/', authenticateToken, async (req, res) => {
       observacoes, documentos, formulario_respostas
     } = req.body;
     const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
-    const encarregadoId = usuario?.entidade_id;
-    if (!encarregadoId) return res.status(400).json({ error: 'Encarregado nǜo encontrado' });
+    const encarregadoId = await resolverEncarregado(usuario);
+    if (!encarregadoId) return res.status(400).json({ error: 'Encarregado não encontrado' });
 
     const avisos = [];
     let turma = null;
@@ -343,7 +347,7 @@ router.put('/:id/aceitar', authenticateToken, async (req, res) => {
 
     const io = req.app.get('io');
     if (io && solicitacao.encarregado_id) {
-      io.to('user:' + solicitacao.encarregado_id.toString()).emit('comunicado:novo', {
+      io.to('entidade:' + solicitacao.encarregado_id.toString()).emit('comunicado:novo', {
         comunicado_id: comResult.insertedId.toString(),
         titulo: comunicado.titulo,
         tipo: 'vaga_aceite'

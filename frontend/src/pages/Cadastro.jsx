@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowRight, ArrowLeft, Building2, Shield, Users, CheckCircle, AlertCircle, Send, KeyRound, Mail } from 'lucide-react';
 import Logo from '../components/Logo';
 import { authService } from '../services/api';
+import { useNotifications } from '../contexts/NotificationContext';
 
 const PERFIS = [
   { value: 'instituicao', label: 'Instituição de Ensino', desc: 'Registar a minha instituição e gerir vagas, alunos, professores e comunicados', icon: Building2 },
@@ -34,6 +35,17 @@ const Cadastro = () => {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const { showToast } = useNotifications();
+
+  const notificarErro = (msg) => {
+    setError(msg);
+    showToast({ message: msg, type: 'error' });
+  };
+
+  const notificarSucesso = (msg) => {
+    setSuccess(msg);
+    showToast({ message: msg, type: 'success' });
+  };
 
   useEffect(() => {
     if (perfil === 'instituicao') {
@@ -61,16 +73,16 @@ const Cadastro = () => {
     setError('');
     setSuccess('');
     if (!formData.email) {
-      setError('Indique o seu email');
+      notificarErro('Indique o seu email');
       return;
     }
     setLoading(true);
     try {
       const res = await authService.solicitarVerificacao({ email: formData.email, tipo: 'cadastro' });
       setVerificacao((v) => ({ ...v, email: { ...v.email, enviado: true, verificado: false } }));
-      setSuccess(res.data?.message || 'Código enviado por email.');
+      notificarSucesso(res.data?.message || 'Código enviado por email.');
     } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao enviar o código de verificação.');
+      notificarErro(err.response?.data?.error || 'Erro ao enviar o código de verificação.');
     } finally {
       setLoading(false);
     }
@@ -81,16 +93,16 @@ const Cadastro = () => {
     setSuccess('');
     const codigo = verificacao.email.codigo;
     if (!codigo) {
-      setError('Introduza o código recebido.');
+      notificarErro('Introduza o código recebido.');
       return;
     }
     setLoading(true);
     try {
       const res = await authService.verificarCodigo({ codigo, tipo: 'cadastro', email: formData.email });
       setVerificacao((v) => ({ ...v, email: { ...v.email, verificado: true } }));
-      setSuccess('Email verificado com sucesso.');
+      notificarSucesso('Email verificado com sucesso.');
     } catch (err) {
-      setError(err.response?.data?.error || 'Código inválido ou expirado.');
+      notificarErro(err.response?.data?.error || 'Código inválido ou expirado.');
     } finally {
       setLoading(false);
     }
@@ -102,21 +114,21 @@ const Cadastro = () => {
     setSuccess('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('As palavras-passe não coincidem');
+      notificarErro('As palavras-passe não coincidem');
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('A palavra-passe deve ter pelo menos 6 caracteres');
+      notificarErro('A palavra-passe deve ter pelo menos 6 caracteres');
       return;
     }
 
     if (!formData.email) {
-      setError('Indique o seu email para validação da conta.');
+      notificarErro('Indique o seu email para validação da conta.');
       return;
     }
     if (!verificacao.email.verificado) {
-      setError('Verifique o seu email com o código enviado antes de criar a conta.');
+      notificarErro('Verifique o seu email com o código enviado antes de criar a conta.');
       return;
     }
 
@@ -147,17 +159,17 @@ const Cadastro = () => {
 
       if (perfil === 'instituicao') {
         if (escolaExiste && formData.instituicao_nome) {
-          setSuccess('Solicitação de reivindicação enviada! Aguarde aprovação do administrador do sistema.');
+          notificarSucesso('Solicitação de reivindicação enviada! Aguarde aprovação do administrador do sistema.');
         } else {
-          setSuccess('Conta criada com sucesso! Aguarde aprovação do administrador do sistema.');
+          notificarSucesso('Conta criada com sucesso! Aguarde aprovação do administrador do sistema.');
         }
         setTimeout(() => navigate('/login'), 3000);
       } else {
-        setSuccess('Conta criada com sucesso! Aguarde a aprovação do administrador antes de entrar no sistema.');
+        notificarSucesso('Conta criada com sucesso! Aguarde a aprovação do administrador antes de entrar no sistema.');
         setTimeout(() => navigate('/login'), 3000);
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao criar conta. Tente novamente.');
+      notificarErro(err.response?.data?.error || 'Erro ao criar conta. Tente novamente.');
     }
 
     setLoading(false);

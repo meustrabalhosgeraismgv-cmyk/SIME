@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, Shield, ArrowRight, MapPin, ArrowLeft, Mail, KeyRound, Send, CheckCircle2 } from 'lucide-react';
 import Logo from '../components/Logo';
 import { authService } from '../services/api';
+import { useNotifications } from '../contexts/NotificationContext';
 
 const Login = () => {
   const [mode, setMode] = useState('login');
@@ -24,6 +25,17 @@ const Login = () => {
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useNotifications();
+
+  const notificarErro = (msg) => {
+    setError(msg);
+    showToast({ message: msg, type: 'error' });
+  };
+
+  const notificarSucesso = (msg) => {
+    setSuccess(msg);
+    showToast({ message: msg, type: 'success' });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,7 +47,7 @@ const Login = () => {
     if (result.success) {
       navigate('/app/dashboard');
     } else {
-      setError(result.error);
+      notificarErro(result.error);
     }
 
     setLoading(false);
@@ -48,10 +60,10 @@ const Login = () => {
     setLoading(true);
     try {
       const res = await authService.esqueciSenha({ email });
-      setSuccess(res.data?.message || 'Código enviado para o seu email.');
+      notificarSucesso(res.data?.message || 'Código enviado para o seu email.');
       setEtapaRecuperacao('codigo');
     } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao enviar o código. Verifique o email.');
+      notificarErro(err.response?.data?.error || 'Erro ao enviar o código. Verifique o email.');
     } finally {
       setLoading(false);
     }
@@ -67,7 +79,7 @@ const Login = () => {
       setSuccess('');
       setEtapaRecuperacao('senha');
     } catch (err) {
-      setError(err.response?.data?.error || 'Código inválido ou expirado.');
+      notificarErro(err.response?.data?.error || 'Código inválido ou expirado.');
     } finally {
       setLoading(false);
     }
@@ -77,13 +89,13 @@ const Login = () => {
     e.preventDefault();
     setError('');
     if (novaSenha !== confirmarSenha) {
-      setError('As palavras-passe não coincidem.');
+      notificarErro('As palavras-passe não coincidem.');
       return;
     }
     setLoading(true);
     try {
       await authService.redefinirSenha({ reset_token: resetToken, nova_senha: novaSenha });
-      setSuccess('Palavra-passe redefinida com sucesso. Pode iniciar sessão.');
+      notificarSucesso('Palavra-passe redefinida com sucesso. Pode iniciar sessão.');
       setEtapaRecuperacao('email');
       setMode('login');
       setEmail('');
@@ -93,7 +105,7 @@ const Login = () => {
       setResetToken('');
       setPassword('');
     } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao redefinir a palavra-passe.');
+      notificarErro(err.response?.data?.error || 'Erro ao redefinir a palavra-passe.');
     } finally {
       setLoading(false);
     }

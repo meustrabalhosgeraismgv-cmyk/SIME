@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { getDB } = require('../config/mongodb');
 const { ObjectId } = require('mongodb');
 const { matchInstituicaoId } = require('../utils/filters');
+const { resolverEncarregado } = require('../utils/encarregadoUtil');
 
 const login = async (req, res) => {
   try {
@@ -21,6 +22,11 @@ const login = async (req, res) => {
 
     const validPassword = await bcrypt.compare(password, usuario.password);
     if (!validPassword) return res.status(401).json({ error: 'Credenciais inválidas' });
+
+    if (usuario.perfil === 'encarregado') {
+      const encarregadoId = await resolverEncarregado(usuario);
+      if (encarregadoId) usuario.entidade_id = encarregadoId;
+    }
 
     const token = jwt.sign({
       id: usuario._id.toString(),

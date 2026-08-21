@@ -354,7 +354,9 @@ const deleteAluno = async (req, res) => {
 const getFilhosEncarregado = async (req, res) => {
   try {
     const db = getDB();
-    const encarregadoId = req.user?.entidade_id;
+    const { resolverEncarregado } = require('../utils/encarregadoUtil');
+    const usuario = await db.collection('usuarios').findOne({ _id: new ObjectId(req.user.id) });
+    const encarregadoId = await resolverEncarregado(usuario);
     if (!encarregadoId) return res.status(400).json({ error: 'Encarregado não encontrado' });
 
     const alunos = await db.collection('alunos')

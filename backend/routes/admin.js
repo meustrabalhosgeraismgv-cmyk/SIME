@@ -73,7 +73,7 @@ router.put('/users/:id/aprovar', authenticateToken, authorizeRole('admin'), asyn
       const encResult = await db.collection('encarregados').insertOne({
         nome_completo: user.nome || user.username,
         telefone: user.telefone || null,
-        bi: null,
+        bi: `AUTO-${user._id.toString()}`,
         email: user.email || null,
         endereco: null,
         created_at: new Date()

@@ -144,7 +144,7 @@ export default function PublicDetalheEscola() {
     setSolicitacaoError('');
     try {
       await solicitacaoService.create({
-        instituicao_id: parseInt(id),
+        instituicao_id: id,
         aluno_nome: form.aluno_nome,
         aluno_data_nascimento: form.aluno_data_nascimento || null,
         aluno_sexo: form.aluno_sexo,

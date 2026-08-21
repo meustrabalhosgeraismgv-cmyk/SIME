@@ -6,7 +6,7 @@ import ChatWindow from '../components/chat/ChatWindow';
 import NewConversationModal from '../components/chat/NewConversationModal';
 import GroupSettingsModal from '../components/chat/GroupSettingsModal';
 import { chatService } from '../services/chatService';
-import { connectSocket, disconnectSocket } from '../services/socketClient';
+import { connectSocket } from '../services/socketClient';
 
 export default function Chat() {
   const { user } = useAuth();
@@ -19,7 +19,6 @@ export default function Chat() {
   useEffect(() => {
     const token = localStorage.getItem('sime_token');
     if (token) connectSocket(token);
-    return () => disconnectSocket();
   }, []);
 
   const handleSelect = useCallback((id) => {
