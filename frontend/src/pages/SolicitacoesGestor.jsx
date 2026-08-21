@@ -2,9 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import { CheckCircle, XCircle, Clock, Loader2, Eye, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, RefreshCw, FileText, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import { solicitacaoService } from '../services/api';
 import { connectSocket } from '../services/socketClient';
+
+const API_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+
+const formatSize = (bytes) => {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+};
 
 const SolicitacoesGestor = () => {
   const { user } = useAuth();
@@ -14,6 +23,7 @@ const SolicitacoesGestor = () => {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState('todas');
   const [working, setWorking] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
   const fetchSolicitacoes = useCallback(async () => {
     try {
@@ -54,33 +64,17 @@ const SolicitacoesGestor = () => {
   const handleAction = async (id, action) => {
     setWorking(id);
     try {
-      const url = action === 'aceitar' ? `/${id}/aceitar`
-        : action === 'agendar' ? `/${id}/agendar`
-        : action === 'rejeitar' ? `/${id}/rejeitar`
-        : action === 'inscrever' ? `/${id}/inscrever`
-        : '';
-      const res = await fetch(`/api/solicitacoes${url}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('sime_token')}` },
-        body: JSON.stringify({ observacoes: '' })
-      });
-      if (!res.ok) throw new Error('Erro');
+      if (action === 'aceitar') await solicitacaoService.aceitar(id);
+      else if (action === 'agendar') await solicitacaoService.agendar(id);
+      else if (action === 'rejeitar') await solicitacaoService.rejeitar(id);
+      else if (action === 'inscrever') await solicitacaoService.inscrever(id);
       const label = { aceitar: 'aceite', agendar: 'agendado', rejeitar: 'rejeitada', inscrever: 'inscrito' }[action];
       showToast({ message: `Solicitação ${label}!`, type: 'success' });
       fetchSolicitacoes();
     } catch (error) {
       console.error('Erro:', error);
-      showToast({ message: 'Erro ao processar solicitação', type: 'error' });
+      showToast({ message: error.response?.data?.error || 'Erro ao processar solicitação', type: 'error' });
     } finally { setWorking(null); }
-  };
-
-  const filtroMap = {
-    todas: null,
-    pendente: 'pendente',
-    aceite: 'aceite',
-    rejeitada: 'rejeitada',
-    agendado: 'agendado',
-    inscrito: 'inscrito'
   };
 
   const filtradas = filtro === 'todas' ? solicitacoes : solicitacoes.filter(s => s.estado === filtro);
@@ -103,6 +97,7 @@ const SolicitacoesGestor = () => {
   const card = theme === 'dark' ? 'bg-navy-800 border-navy-700' : 'bg-white border-gray-200';
   const text = theme === 'dark' ? 'text-white' : 'text-gray-900';
   const subtext = theme === 'dark' ? 'text-gray-400' : 'text-gray-500';
+  const innerCard = theme === 'dark' ? 'bg-navy-700' : 'bg-gray-50';
 
   return (
     <div className={`min-h-screen ${bg} p-6`}>
@@ -139,82 +134,133 @@ const SolicitacoesGestor = () => {
               <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className={`${text} font-medium`}>Nenhuma solicitação encontrada</p>
             </div>
-          ) : filtradas.map(s => (
-            <div key={s.id} className={`${card} border rounded-2xl p-5`}>
-              <div className="flex items-start justify-between flex-wrap gap-3">
-                <div className="flex-1 min-w-[220px]">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className={`font-semibold ${text}`}>{s.aluno_nome}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${estadoColors[s.estado]}`}>
-                      {s.estado}
-                    </span>
+          ) : filtradas.map(s => {
+            const isExpanded = expandedId === s.id;
+            const docs = s.documentos || [];
+            const formResps = s.formulario_respostas || [];
+            const hasDetails = docs.length > 0 || formResps.length > 0 || s.necessidades_especiais || s.observacoes;
+
+            return (
+              <div key={s.id} className={`${card} border rounded-2xl p-5`}>
+                <div className="flex items-start justify-between flex-wrap gap-3">
+                  <div className="flex-1 min-w-[220px]">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className={`font-semibold ${text}`}>{s.aluno_nome}</h3>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${estadoColors[s.estado]}`}>
+                        {s.estado}
+                      </span>
+                    </div>
+                    <p className={`text-sm ${subtext}`}>
+                      Encarregado: {s.encarregado_nome} • Tel: {s.encarregado_telefone}
+                    </p>
+                    {s.aluno_data_nascimento && (
+                      <p className={`text-xs ${subtext} mt-0.5`}>
+                        Nascimento: {new Date(s.aluno_data_nascimento).toLocaleDateString('pt-AO')} • Sexo: {s.aluno_sexo || '—'}
+                      </p>
+                    )}
+                    {s.aluno_bi && (
+                      <p className={`text-xs ${subtext}`}>BI: {s.aluno_bi}</p>
+                    )}
+                    {s.turma_nome && (
+                      <p className={`text-xs mt-1 text-primary-500 font-medium`}>Turma pretendida: {s.turma_nome}</p>
+                    )}
+                    {s.necessidades_especiais && s.necessidades_especiais !== 'Nenhuma' && (
+                      <p className={`text-xs mt-1 text-amber-600 font-medium`}>Necessidades especiais: {s.necessidades_especiais}</p>
+                    )}
+                    {s.comunicado_titulo && (
+                      <p className="text-xs text-primary-500 mt-1">Comunicado: {s.comunicado_titulo}</p>
+                    )}
+                    <p className={`text-xs ${subtext} mt-1`}>
+                      {new Date(s.created_at).toLocaleDateString('pt-AO')} {new Date(s.created_at).toLocaleTimeString('pt-AO')}
+                    </p>
                   </div>
-                  <p className={`text-sm ${subtext}`}>
-                    Encarregado: {s.encarregado_nome} • Tel: {s.encarregado_telefone}
-                  </p>
-                  {s.turma_nome && (
-                    <p className={`text-xs mt-1 text-primary-500 font-medium`}>Turma pretendida: {s.turma_nome}</p>
-                  )}
-                  {(s.documentos || []).length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {s.documentos.map((d, i) => (
-                        d.url ? (
-                          <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:underline">
-                            {d.nome || d.chave}
-                          </a>
-                        ) : (
-                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-600 dark:bg-navy-700 dark:text-gray-400">
-                            {d.nome || d.chave}
-                          </span>
-                        )
-                      ))}
-                    </div>
-                  )}
-                  {(s.formulario_respostas || []).length > 0 && (
-                    <div className="mt-2">
-                      <p className={`text-xs font-medium ${subtext} mb-1`}>Ficha de inscrição (preenchida no site):</p>
-                      <div className="flex flex-wrap gap-1">
-                        {s.formulario_respostas.map((f, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                            {f.label}: {f.valor}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {s.comunicado_titulo && (
-                    <p className="text-xs text-primary-500 mt-1">Comunicado: {s.comunicado_titulo}</p>
-                  )}
-                  <p className={`text-xs ${subtext} mt-1`}>
-                    {new Date(s.created_at).toLocaleDateString('pt-AO')} {new Date(s.created_at).toLocaleTimeString('pt-AO')}
-                  </p>
+                  <div className="flex gap-2 flex-wrap items-start">
+                    {hasDetails && (
+                      <button onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 dark:bg-navy-700 hover:bg-gray-300 dark:hover:bg-navy-600 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium transition-colors">
+                        <FileText className="w-3.5 h-3.5" /> Detalhes
+                        {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      </button>
+                    )}
+                    {s.estado === 'pendente' && (
+                      <>
+                        <button onClick={() => handleAction(s.id, 'aceitar')} disabled={working === s.id}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+                          <CheckCircle className="w-3.5 h-3.5" /> Aceitar
+                        </button>
+                        <button onClick={() => handleAction(s.id, 'agendar')} disabled={working === s.id}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+                          Agendar
+                        </button>
+                        <button onClick={() => handleAction(s.id, 'rejeitar')} disabled={working === s.id}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+                          <XCircle className="w-3.5 h-3.5" /> Rejeitar
+                        </button>
+                      </>
+                    )}
+                    {s.estado === 'aceite' && (
+                      <button onClick={() => handleAction(s.id, 'inscrever')} disabled={working === s.id}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+                        Inscrever
+                      </button>
+                    )}
+                  </div>
                 </div>
-                {s.estado === 'pendente' && (
-                  <div className="flex gap-2 flex-wrap">
-                    <button onClick={() => handleAction(s.id, 'aceitar')} disabled={working === s.id}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
-                      <CheckCircle className="w-3.5 h-3.5" /> Aceitar
-                    </button>
-                    <button onClick={() => handleAction(s.id, 'agendar')} disabled={working === s.id}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
-                      <Eye className="w-3.5 h-3.5" /> Agendar
-                    </button>
-                    <button onClick={() => handleAction(s.id, 'rejeitar')} disabled={working === s.id}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
-                      <XCircle className="w-3.5 h-3.5" /> Rejeitar
-                    </button>
+
+                {isExpanded && (
+                  <div className={`mt-4 p-4 rounded-xl ${innerCard} border ${theme === 'dark' ? 'border-navy-600' : 'border-gray-200'} space-y-3`}>
+                    {formResps.length > 0 && (
+                      <div>
+                        <h4 className={`text-xs font-semibold ${text} mb-2 uppercase tracking-wide`}>Ficha de Inscrição</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {formResps.map((f, i) => (
+                            <div key={i} className="flex items-start gap-2 text-xs">
+                              <span className={`font-medium ${subtext} min-w-[120px]`}>{f.label}:</span>
+                              <span className={`${text}`}>{f.valor || '—'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {docs.length > 0 && (
+                      <div>
+                        <h4 className={`text-xs font-semibold ${text} mb-2 uppercase tracking-wide`}>Documentos Anexados ({docs.length})</h4>
+                        <div className="space-y-2">
+                          {docs.map((d, i) => {
+                            const fullUrl = d.url?.startsWith('http') ? d.url : `${API_URL}${d.url}`;
+                            const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(d.url || '');
+                            return (
+                              <div key={i} className={`flex items-center gap-3 p-2 rounded-lg ${theme === 'dark' ? 'bg-navy-600' : 'bg-white'} border ${theme === 'dark' ? 'border-navy-500' : 'border-gray-200'}`}>
+                                <div className="w-8 h-8 bg-primary-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <FileText className="w-4 h-4 text-primary-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-xs font-medium ${text} truncate`}>{d.nome || d.chave}</p>
+                                  <p className={`text-[10px] ${subtext}`}>{d.nome_ficheiro} • {formatSize(d.tamanho)}</p>
+                                </div>
+                                <a href={fullUrl} target="_blank" rel="noopener noreferrer"
+                                  className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors flex-shrink-0">
+                                  <Download className="w-3 h-3" /> Ver
+                                </a>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {s.observacoes && (
+                      <div>
+                        <h4 className={`text-xs font-semibold ${text} mb-1 uppercase tracking-wide`}>Observações</h4>
+                        <p className={`text-xs ${subtext}`}>{s.observacoes}</p>
+                      </div>
+                    )}
                   </div>
-                )}
-                {s.estado === 'aceite' && (
-                  <button onClick={() => handleAction(s.id, 'inscrever')} disabled={working === s.id}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
-                    Inscrever
-                  </button>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
