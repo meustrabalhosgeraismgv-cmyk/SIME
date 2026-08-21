@@ -26,8 +26,13 @@ function toSolicitacao(doc) {
     instituicao_id: doc.instituicao_id ? doc.instituicao_id.toString() : null,
     curso_id: doc.curso_id ? doc.curso_id.toString() : null,
     turma_id: doc.turma_id ? doc.turma_id.toString() : null,
+    comunicado_id: doc.comunicado_id ? doc.comunicado_id.toString() : null,
     documentos: Array.isArray(doc.documentos) ? doc.documentos : [],
     formulario_respostas: Array.isArray(doc.formulario_respostas) ? doc.formulario_respostas : [],
+    historico: Array.isArray(doc.historico) ? doc.historico : [],
+    data_agendada: doc.data_agendada || null,
+    hora_agendada: doc.hora_agendada || null,
+    data_resposta: doc.data_resposta || null,
   };
 }
 
@@ -360,7 +365,12 @@ router.put('/:id/aceitar', authenticateToken, async (req, res) => {
   }
 });
 router.put('/:id/rejeitar', authenticateToken, (req, res) => atualizarEstado(req, res, 'rejeitada', { observacoes: req.body.observacoes || '' }));
-router.put('/:id/agendar', authenticateToken, (req, res) => atualizarEstado(req, res, 'agendado', { observacoes: req.body.observacoes || '' }));
+router.put('/:id/agendar', authenticateToken, (req, res) => {
+  const extra = { observacoes: req.body.observacoes || '' };
+  if (req.body.data_agendada) extra.data_agendada = new Date(req.body.data_agendada);
+  if (req.body.hora_agendada) extra.hora_agendada = req.body.hora_agendada;
+  atualizarEstado(req, res, 'agendado', extra);
+});
 router.put('/:id/inscrever', authenticateToken, (req, res) => atualizarEstado(req, res, 'inscrito'));
 
 router.put('/:id/retomar', authenticateToken, (req, res) => atualizarEstado(req, res, 'aceite'));
