@@ -151,6 +151,7 @@ const createInstituicao = async (req, res) => {
     const db = getDB();
     const {
       nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, latitude, longitude,
+      video_url, video_titulo,
       coordenador_pais_nome, coordenador_pais_telefone, coordenador_pais_email
     } = req.body;
 
@@ -165,6 +166,8 @@ const createInstituicao = async (req, res) => {
       vagas_disponiveis: vagas_totais,
       latitude: latitude || null,
       longitude: longitude || null,
+      video_url: video_url || null,
+      video_titulo: video_titulo || null,
       coordenador_pais_nome: coordenador_pais_nome || '',
       coordenador_pais_telefone: coordenador_pais_telefone || '',
       coordenador_pais_email: coordenador_pais_email || '',
@@ -186,7 +189,7 @@ const updateInstituicao = async (req, res) => {
     const { id } = req.params;
     const {
       nome, tipo, endereco, telefone, email, municipio_id, vagas_totais, vagas_disponiveis,
-      status, latitude, longitude,
+      status, latitude, longitude, video_url, video_titulo,
       coordenador_pais_nome, coordenador_pais_telefone, coordenador_pais_email
     } = req.body;
 
@@ -203,6 +206,8 @@ const updateInstituicao = async (req, res) => {
         status,
         latitude: latitude || null,
         longitude: longitude || null,
+        video_url: video_url || null,
+        video_titulo: video_titulo || null,
         coordenador_pais_nome: coordenador_pais_nome || '',
         coordenador_pais_telefone: coordenador_pais_telefone || '',
         coordenador_pais_email: coordenador_pais_email || '',

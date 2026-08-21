@@ -128,11 +128,102 @@ router.delete('/users/:id', authenticateToken, authorizeRole('admin'), async (re
     if (user.perfil === 'admin') {
       return res.status(400).json({ error: 'Não é possível eliminar administradores' });
     }
+
+    // Delete associated encarregado document
+    if (user.perfil === 'encarregado' && user.entidade_id) {
+      try {
+        await db.collection('encarregados').deleteOne({ _id: new ObjectId(user.entidade_id) });
+      } catch (_) {}
+    }
+
+    // Delete associated solicitacoes
+    await db.collection('solicitacoes').deleteMany({ usuario_id: req.params.id });
+
+    // Delete associated pagamentos
+    await db.collection('pagamentos').deleteMany({ usuario_id: req.params.id });
+
     await db.collection('usuarios').deleteOne({ _id: new ObjectId(req.params.id) });
     res.json({ message: 'Utilizador eliminado com sucesso' });
   } catch (error) {
     console.error('Erro ao eliminar utilizador:', error);
     res.status(500).json({ error: 'Erro ao eliminar utilizador' });
+  }
+});
+
+router.delete('/instituicoes/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
+  try {
+    const db = getDB();
+    const instId = req.params.id;
+
+    const inst = await db.collection('instituicoes').findOne({ _id: new ObjectId(instId) });
+    if (!inst) {
+      return res.status(404).json({ error: 'Instituição não encontrada' });
+    }
+
+    // Delete turmas
+    await db.collection('turmas').deleteMany({ instituicao_id: instId });
+
+    // Delete cursos
+    await db.collection('cursos').deleteMany({ instituicao_id: instId });
+
+    // Delete informacoes_instituicao
+    await db.collection('informacoes_instituicao').deleteMany({ instituicao_id: instId });
+
+    // Delete usuarios linked to this institution
+    await db.collection('usuarios').deleteMany({ entidade_id: instId });
+
+    // Delete solicitacoes for this institution
+    await db.collection('solicitacoes').deleteMany({ instituicao_id: instId });
+
+    // Delete the institution itself
+    await db.collection('instituicoes').deleteOne({ _id: new ObjectId(instId) });
+
+    res.json({ message: 'Instituição e todos os dados associados eliminados com sucesso' });
+  } catch (error) {
+    console.error('Erro ao eliminar instituição:', error);
+    res.status(500).json({ error: 'Erro ao eliminar instituição' });
+  }
+});
+
+router.delete('/mensagens/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
+  try {
+    const db = getDB();
+    const msg = await db.collection('mensagens').findOne({ _id: new ObjectId(req.params.id) });
+    if (!msg) {
+      return res.status(404).json({ error: 'Mensagem não encontrada' });
+    }
+
+    await db.collection('mensagens').deleteOne({ _id: new ObjectId(req.params.id) });
+    res.json({ message: 'Mensagem eliminada com sucesso' });
+  } catch (error) {
+    console.error('Erro ao eliminar mensagem:', error);
+    res.status(500).json({ error: 'Erro ao eliminar mensagem' });
+  }
+});
+
+router.delete('/conversas/:id', authenticateToken, authorizeRole('admin'), async (req, res) => {
+  try {
+    const db = getDB();
+    const conversaId = req.params.id;
+
+    const conversa = await db.collection('conversas').findOne({ _id: new ObjectId(conversaId) });
+    if (!conversa) {
+      return res.status(404).json({ error: 'Conversa não encontrada' });
+    }
+
+    // Delete all messages in this conversation
+    await db.collection('mensagens').deleteMany({ conversa_id: conversaId });
+
+    // Delete all participants
+    await db.collection('conversa_participantes').deleteMany({ conversa_id: conversaId });
+
+    // Delete the conversation itself
+    await db.collection('conversas').deleteOne({ _id: new ObjectId(conversaId) });
+
+    res.json({ message: 'Conversa, mensagens e participantes eliminados com sucesso' });
+  } catch (error) {
+    console.error('Erro ao eliminar conversa:', error);
+    res.status(500).json({ error: 'Erro ao eliminar conversa' });
   }
 });
 

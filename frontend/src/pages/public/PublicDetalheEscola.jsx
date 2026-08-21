@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Phone, Mail, MapPin, Users, Building2,
   BookOpen, X, Loader2, CheckCircle, Clock, FileText, CreditCard,
-  Globe, ChevronDown, ChevronUp, School, Stethoscope
+  Globe, ChevronDown, ChevronUp, School, Stethoscope, Video
 } from 'lucide-react';
 import Loading from '../../components/Loading';
 import { instituicaoService, solicitacaoService, cursoService, informacoesService, taxaReservaService, documentoService } from '../../services/api';
@@ -219,6 +219,26 @@ export default function PublicDetalheEscola() {
               <div><div style={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.darkBlue }}>{ocupacao.total}</div><div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Total</div></div>
               <div><div style={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.orange }}>{ocupacao.ocupadas}</div><div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Ocupadas</div></div>
               <div><div style={{ fontSize: '1.5rem', fontWeight: 700, color: COLORS.green }}>{ocupacao.disponiveis}</div><div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Disponíveis</div></div>
+            </div>
+          </div>
+        )}
+
+        {/* Video da Escola */}
+        {escola.video_url && (
+          <div style={{ backgroundColor: COLORS.white, borderRadius: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: '1.5rem', overflow: 'hidden' }}>
+            <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${COLORS.grayBg}`, fontWeight: 600, color: COLORS.darkBlue, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Video size={18} />
+              {escola.video_titulo || 'Vídeo da Escola'}
+            </div>
+            <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
+              <iframe
+                src={escola.video_url}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={escola.video_titulo || escola.nome}
+              />
             </div>
           </div>
         )}

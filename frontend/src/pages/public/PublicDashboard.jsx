@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   School, Users, GraduationCap, BookOpen, MapPin, Search,
   ArrowRight, Calendar, Megaphone, Star, AlertTriangle,
-  Info, Settings, Building2, ChevronLeft, ChevronRight
+  Info, Settings, Building2, ChevronLeft, ChevronRight, Play, Video
 } from 'lucide-react';
 import { instituicaoService, configService } from '../../services/api';
 import MapaAngola from '../../components/MapaAngola';
@@ -269,6 +269,43 @@ export default function PublicDashboard() {
                   </Link>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Videos Section - School presentations */}
+        {escolas.filter(e => e.video_url).length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Video className="w-5 h-5 text-[#0061a4]" />
+                <h3 className="text-lg font-semibold text-gray-900">Vídeos das Escolas</h3>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {escolas.filter(e => e.video_url).slice(0, 4).map((escola) => (
+                <div key={escola._id || escola.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                  <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+                    <iframe
+                      src={escola.video_url}
+                      className="absolute inset-0 w-full h-full"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title={escola.video_titulo || escola.nome}
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="p-4">
+                    <h4 className="text-sm font-semibold text-gray-900 line-clamp-1">{escola.video_titulo || escola.nome}</h4>
+                    <p className="text-xs text-gray-500 mt-1">{escola.nome}</p>
+                    <Link to={`/escolas/${escola._id || escola.id}`}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#0061a4] hover:underline">
+                      Ver escola <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
